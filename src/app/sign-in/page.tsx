@@ -1,63 +1,54 @@
-import { getSignInUrl } from '@workos-inc/authkit-nextjs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { redirect } from 'next/navigation';
+// src/app/sign-in/page.tsx
 
-export default async function SignInPage() {
-  const signInUrl = await getSignInUrl();
+import { Metadata } from "next";
+import { Suspense } from "react";
 
-  const handleSignIn = async () => {
-    'use server';
-    redirect(signInUrl);
-  };
+import { cn } from "@/lib/utils";
 
+import { Skeleton } from "@/components/ui/skeleton";
+import SignInForm from "@/components/Auth/SignInForm";
+
+// Metadata for the sign-in page
+export const metadata: Metadata = {
+  title: "Sign In | LangChain Platform",
+  description: "Sign in to your LangChain Platform account to access powerful AI tools and build advanced language model applications.",
+  keywords: ["sign in", "login", "langchain", "ai", "authentication", "platform"],
+  robots: {
+    index: false, // Don't index auth pages
+    follow: true,
+  },
+  openGraph: {
+    title: "Sign In | LangChain Platform",
+    description: "Sign in to your LangChain Platform account to access powerful AI tools and build advanced language model applications.",
+    type: "website",
+  },
+  twitter: {
+    title: "Sign In | LangChain Platform",
+    description: "Sign in to your LangChain Platform account to access powerful AI tools.",
+    card: "summary",
+  },
+};
+
+export default function SignInPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Welcome back
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Sign in to your account to continue
-          </p>
-        </div>
-        
-        <Card className="shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-semibold text-center">
-              Sign In
-            </CardTitle>
-            <CardDescription className="text-center">
-              Access your account securely with WorkOS AuthKit
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <form action={handleSignIn}>
-              <Button type="submit" className="w-full" size="lg">
-                Continue to Sign In
-              </Button>
-            </form>
-            <div className="text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Powered by WorkOS AuthKit for secure authentication
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{' '}
-            <a
-              href="/sign-up"
-              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Sign up here
-            </a>
-          </p>
+    <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm md:max-w-3xl">
+        <div className={cn("flex flex-col gap-4")}>
+          <Suspense fallback={<Skeleton className="h-full w-full" />}>
+            <SignInForm />
+          </Suspense>
+          <div className="text-muted-foreground text-center text-xs text-balance">
+            By signing in, you agree to our{" "}
+            <a href="/terms-of-service" className="underline underline-offset-4 hover:text-primary">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="/privacy-policy" className="underline underline-offset-4 hover:text-primary">
+              Privacy Policy
+            </a>.
+          </div>
         </div>
       </div>
     </div>
-  );
+  )
 } 

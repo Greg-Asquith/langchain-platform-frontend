@@ -1,61 +1,52 @@
-import { getSignUpUrl } from '@workos-inc/authkit-nextjs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { redirect } from 'next/navigation';
+// src/app/sign-up/page.tsx
 
-export default async function SignUpPage() {
-  const signUpUrl = await getSignUpUrl();
+import { Metadata } from "next";
+import { Suspense } from "react";
 
-  const handleSignUp = async () => {
-    'use server';
-    redirect(signUpUrl);
-  };
+import { cn } from "@/lib/utils";
 
+import { Skeleton } from "@/components/ui/skeleton";
+import SignUpForm from "@/components/Auth/SignUpForm";
+
+// Metadata for the sign-up page
+export const metadata: Metadata = {
+  title: "Sign Up | LangChain Platform",
+  description: "Create your LangChain Platform account to start building and deploying advanced AI applications with powerful language models.",
+  keywords: ["sign up", "register", "create account", "langchain", "ai", "platform"],
+  robots: {
+    index: false, // Don't index auth pages
+    follow: true,
+  },
+  openGraph: {
+    title: "Sign Up | LangChain Platform",
+    description: "Create your LangChain Platform account to start building and deploying advanced AI applications with powerful language models.",
+    type: "website",
+  },
+  twitter: {
+    title: "Sign Up | LangChain Platform",
+    description: "Create your LangChain Platform account to start building with AI.",
+    card: "summary",
+  },
+};
+
+export default function SignUpPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Create your account
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Get started with your free account today
-          </p>
-        </div>
-        
-        <Card className="shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-semibold text-center">
-              Sign Up
-            </CardTitle>
-            <CardDescription className="text-center">
-              Create your account securely with WorkOS AuthKit
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <form action={handleSignUp}>
-              <Button type="submit" className="w-full" size="lg">
-                Continue to Sign Up
-              </Button>
-            </form>
-            <div className="text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Powered by WorkOS AuthKit for secure authentication
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
-            <a
-              href="/sign-in"
-              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Sign in here
-            </a>
-          </p>
+    <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm md:max-w-3xl">
+        <div className={cn("flex flex-col gap-4")}>
+          <Suspense fallback={<Skeleton className="h-full w-full" />}>
+            <SignUpForm />
+          </Suspense>
+          <div className="text-muted-foreground text-center text-xs text-balance">
+            By creating an account, you agree to our{" "}
+            <a href="/terms-of-service" className="underline underline-offset-4 hover:text-primary">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="/privacy-policy" className="underline underline-offset-4 hover:text-primary">
+              Privacy Policy
+            </a>.
+          </div>
         </div>
       </div>
     </div>

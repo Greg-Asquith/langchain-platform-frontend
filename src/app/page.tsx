@@ -1,68 +1,32 @@
-import Link from 'next/link';
-import { withAuth, getSignInUrl, getSignUpUrl, signOut } from '@workos-inc/authkit-nextjs';
+// src/app/page.tsx
+
+import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getSession } from '@/lib/session';
+
+async function handleSignOut() {
+  'use server';
+  
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/logout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (response.ok) {
+    redirect('/sign-in');
+  }
+}
 
 export default async function HomePage() {
-  // Check if user is authenticated
-  const { user } = await withAuth();
+  // Check if user is authenticated using our custom session management
+  const { user } = await getSession();
 
   if (!user) {
-    // User is not authenticated - show sign-in/sign-up options
-    const signInUrl = await getSignInUrl();
-    const signUpUrl = await getSignUpUrl();
-
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl w-full space-y-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Welcome to LangChain Platform
-            </h1>
-            <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-              Get started by signing in to your account or creating a new one
-            </p>
-          </div>
-          
-          <Card className="shadow-xl">
-            <CardHeader className="text-center space-y-1">
-              <CardTitle className="text-2xl">
-                Get Started
-              </CardTitle>
-              <CardDescription>
-                Choose an option below to continue
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link href={signInUrl}>
-                  <Button variant="default" size="lg" className="w-full">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href={signUpUrl}>
-                  <Button variant="outline" size="lg" className="w-full">
-                    Sign Up
-                  </Button>
-                </Link>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Or visit our dedicated pages:{' '}
-                  <Link href="/sign-in" className="text-blue-600 hover:text-blue-500">
-                    Sign In
-                  </Link>
-                  {' | '}
-                  <Link href="/sign-up" className="text-blue-600 hover:text-blue-500">
-                    Sign Up
-                  </Link>
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
+    // User is not authenticated - redirect to sign-in page
+    redirect('/sign-in');
   }
 
   // User is authenticated - show welcome message and sign out option
@@ -74,7 +38,7 @@ export default async function HomePage() {
             Welcome back{user.firstName && `, ${user.firstName}`}!
           </h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-            You're successfully signed in to LangChain Platform
+            You&apos;re successfully signed in to LangChain Platform
           </p>
         </div>
         
@@ -99,12 +63,12 @@ export default async function HomePage() {
                     Last Name: <span className="font-normal">{user.lastName}</span>
                   </p>
                 )}
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  User ID: <span className="font-normal text-xs">{user.id}</span>
+                </p>
               </div>
               
-              <form action={async () => {
-                'use server';
-                await signOut();
-              }}>
+              <form action={handleSignOut}>
                 <Button type="submit" variant="outline" className="w-full">
                   Sign Out
                 </Button>
