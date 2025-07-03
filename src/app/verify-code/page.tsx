@@ -10,20 +10,20 @@ import VerifyCodeForm from "@/components/Auth/VerifyCode";
 
 // Metadata for the verify code page
 export const metadata: Metadata = {
-  title: "Verify Email | LangChain Platform",
-  description: "Enter the verification code sent to your email to complete your sign-in to LangChain Platform.",
-  keywords: ["verify", "email", "verification", "code", "langchain", "authentication"],
+  title: "Verify Email | Praxis AI",
+  description: "Enter the verification code sent to your email to complete your sign-in to Praxis AI.",
+  keywords: ["verify", "email", "verification", "code", "praxis", "authentication"],
   robots: {
     index: false, // Don't index auth pages
     follow: true,
   },
   openGraph: {
-    title: "Verify Email | LangChain Platform",
-    description: "Enter the verification code sent to your email to complete your sign-in to LangChain Platform.",
+    title: "Verify Email | Praxis AI",
+    description: "Enter the verification code sent to your email to complete your sign-in to Praxis AI.",
     type: "website",
   },
   twitter: {
-    title: "Verify Email | LangChain Platform",
+    title: "Verify Email | Praxis AI",
     description: "Enter the verification code sent to your email to complete your sign-in.",
     card: "summary",
   },

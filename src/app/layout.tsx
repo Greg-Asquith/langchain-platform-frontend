@@ -17,13 +17,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: {
-    default: "LangChain Platform",
-    template: "%s | LangChain Platform"
+    default: "Praxis AI",
+    template: "%s | Praxis AI"
   },
-  description: "Build, deploy, and scale AI applications with LangChain Platform. Powerful tools for developers to create intelligent agents, chatbots, and AI-powered workflows with ease.",
+  description: "Build, deploy, and scale AI applications with Praxis AI. Powerful tools for developers to create intelligent agents, chatbots, and AI-powered workflows with ease.",
   keywords: [
-    "LangChain",
+    "Praxis AI",
     "AI platform",
     "machine learning",
     "artificial intelligence",
@@ -51,16 +52,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://langchain.greagasquith.com",
-    title: "LangChain Platform",
-    description: "Build, deploy, and scale AI applications with LangChain Platform. Powerful tools for developers to create intelligent agents, chatbots, and AI-powered workflows with ease.",
-    siteName: "LangChain Platform",
+    url: "https://praxis.618technology.com/",
+    title: "Praxis AI",
+    description: "Build, deploy, and scale AI applications with Praxis AI. Powerful tools for developers to create intelligent agents, chatbots, and AI-powered workflows with ease.",
+    siteName: "Praxis AI",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "LangChain Platform",
+        alt: "Praxis AI",
       },
     ],
   },
@@ -72,9 +73,9 @@ export const metadata: Metadata = {
     creator: "@Greg_Asquith",
   },
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon-16x16.png",
-    apple: "/apple-touch-icon.png",
+    icon: "/icons/favicon-32x32.png",
+    shortcut: "/icons/favicon-16x16.png",
+    apple: "/icons/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
   category: "technology",

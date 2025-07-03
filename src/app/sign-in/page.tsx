@@ -10,21 +10,21 @@ import SignInForm from "@/components/Auth/SignInForm";
 
 // Metadata for the sign-in page
 export const metadata: Metadata = {
-  title: "Sign In | LangChain Platform",
-  description: "Sign in to your LangChain Platform account to access powerful AI tools and build advanced language model applications.",
-  keywords: ["sign in", "login", "langchain", "ai", "authentication", "platform"],
+  title: "Sign In | Praxis AI",
+  description: "Sign in to your Praxis AI account to access powerful AI tools and build advanced language model applications.",
+  keywords: ["sign in", "login", "praxis", "ai", "authentication", "platform"],
   robots: {
     index: false, // Don't index auth pages
     follow: true,
   },
   openGraph: {
-    title: "Sign In | LangChain Platform",
-    description: "Sign in to your LangChain Platform account to access powerful AI tools and build advanced language model applications.",
+    title: "Sign In | Praxis AI",
+    description: "Sign in to your Praxis AI account to access powerful AI tools and build advanced language model applications.",
     type: "website",
   },
   twitter: {
-    title: "Sign In | LangChain Platform",
-    description: "Sign in to your LangChain Platform account to access powerful AI tools.",
+    title: "Sign In | Praxis AI",
+    description: "Sign in to your Praxis AI account to access powerful AI tools.",
     card: "summary",
   },
 };

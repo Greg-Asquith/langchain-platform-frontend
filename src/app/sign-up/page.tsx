@@ -10,21 +10,21 @@ import SignUpForm from "@/components/Auth/SignUpForm";
 
 // Metadata for the sign-up page
 export const metadata: Metadata = {
-  title: "Sign Up | LangChain Platform",
-  description: "Create your LangChain Platform account to start building and deploying advanced AI applications with powerful language models.",
-  keywords: ["sign up", "register", "create account", "langchain", "ai", "platform"],
+  title: "Sign Up | Praxis AI",
+  description: "Create your Praxis AI account to start building and deploying advanced AI applications with powerful language models.",
+  keywords: ["sign up", "register", "create account", "praxis", "ai", "platform"],
   robots: {
     index: false, // Don't index auth pages
     follow: true,
   },
   openGraph: {
-    title: "Sign Up | LangChain Platform",
-    description: "Create your LangChain Platform account to start building and deploying advanced AI applications with powerful language models.",
+    title: "Sign Up | Praxis AI",
+    description: "Create your Praxis AI account to start building and deploying advanced AI applications with powerful language models.",
     type: "website",
   },
   twitter: {
-    title: "Sign Up | LangChain Platform",
-    description: "Create your LangChain Platform account to start building with AI.",
+    title: "Sign Up | Praxis AI",
+    description: "Create your Praxis AI account to start building with AI.",
     card: "summary",
   },
 };
