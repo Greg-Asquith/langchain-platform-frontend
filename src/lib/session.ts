@@ -14,26 +14,122 @@
 
 import { cookies } from "next/headers";
 
-import { User } from "@workos-inc/node";
+import { User, Organization, OrganizationDomainVerificationStrategy } from "@workos-inc/node";
 
 import { SignJWT, jwtVerify } from "jose";
 
-import { WORKOS_COOKIE_PASSWORD } from "./workos";
+import { WORKOS_COOKIE_PASSWORD, workos } from "./workos";
 
 export interface SessionData {
   user: User;
   accessToken: string;
   refreshToken: string;
+  organizations: Organization[];
+  currentOrganizationId?: string;
   expiresAt?: number;
   lastActivity?: number;
   rememberMe?: boolean;
 }
 
+// Get user's organizations from WorkOS
+async function fetchUserOrganizations(userId: string, userFirstName: string): Promise<Organization[]> {
+  try {
+    const memberships = await workos.userManagement.listOrganizationMemberships({
+      userId,
+      limit: 100,
+    });
+
+    if (memberships.data.length === 0) {
+      // Create personal organization if user has no organizations
+      const personalOrgName = userFirstName ? `${userFirstName}'s Personal Team` : `Personal Team (${userId})`;
+      const personalOrg = await workos.organizations.createOrganization({
+        name: personalOrgName,
+        domainData: [],
+        metadata: {
+          personal: "true",
+          colour: "#ff5c4d",
+        },
+      });
+
+      // Add user as admin of their personal organization
+      await workos.userManagement.createOrganizationMembership({
+        userId,
+        organizationId: personalOrg.id,
+        roleSlug: 'admin',
+      });
+
+      return [{
+        object: "organization",
+        allowProfilesOutsideOrganization: false,
+        createdAt: personalOrg.createdAt,
+        updatedAt: personalOrg.updatedAt,
+        externalId: personalOrg.externalId,
+        id: personalOrg.id,
+        name: personalOrg.name,
+        domains: personalOrg.domains?.map(d => ({
+          object: "organization_domain",
+          organizationId: personalOrg.id,
+          verificationStrategy: OrganizationDomainVerificationStrategy.Manual,
+          id: d.id,
+          domain: d.domain,
+          state: d.state,
+        })) || [],
+        metadata: {
+          personal: "true",
+          colour: "#ff5c4d",
+        },
+      }];
+    }
+
+    // Fetch full organization details
+    const organizations: Organization[] = [];
+    for (const membership of memberships.data) {
+      if (membership.organizationId) {
+        try {
+          const org = await workos.organizations.getOrganization(membership.organizationId);
+          organizations.push({
+            object: "organization",
+            allowProfilesOutsideOrganization: false,
+            createdAt: org.createdAt,
+            updatedAt: org.updatedAt,
+            externalId: org.externalId,
+            id: org.id,
+            name: org.name,
+            domains: org.domains?.map(d => ({
+              object: "organization_domain",
+              organizationId: org.id,
+              verificationStrategy: OrganizationDomainVerificationStrategy.Manual,
+              id: d.id,
+              domain: d.domain,
+              state: d.state,
+            })) || [],
+            metadata: {
+              personal: org.metadata?.personal ? "true" : "false",
+              colour: org.metadata?.colour,
+            },
+          });
+        } catch (error) {
+          console.error(`Failed to fetch organization ${membership.organizationId}:`, error);
+        }
+      }
+    }
+
+    return organizations;
+  } catch (error) {
+    console.error('Failed to fetch user organizations:', error);
+    return [];
+  }
+}
+
 // Enhanced JWT-based session management for custom auth
-export async function createSession(sessionData: SessionData): Promise<string> {
+export async function createSession(sessionData: Omit<SessionData, 'organizations' | 'currentOrganizationId'>): Promise<string> {
   if (!WORKOS_COOKIE_PASSWORD) {
     throw new Error("WORKOS_COOKIE_PASSWORD is required");
   }
+
+  // Fetch user's organizations
+  const organizations = await fetchUserOrganizations(sessionData.user.id, sessionData.user.firstName || '');
+  const currentOrganizationId = organizations.length > 0 ? organizations[0].id : undefined;
 
   const secret = new TextEncoder().encode(WORKOS_COOKIE_PASSWORD);
   const rememberMe = sessionData.rememberMe || false;
@@ -43,6 +139,8 @@ export async function createSession(sessionData: SessionData): Promise<string> {
     user: sessionData.user,
     accessToken: sessionData.accessToken,
     refreshToken: sessionData.refreshToken,
+    organizations,
+    currentOrganizationId,
     expiresAt: sessionData.expiresAt || Date.now() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000),
     lastActivity: sessionData.lastActivity || Date.now(),
     rememberMe,
@@ -56,7 +154,12 @@ export async function createSession(sessionData: SessionData): Promise<string> {
 }
 
 // Check for an active session from the wos-session cookie
-export async function getSession(): Promise<{ user: User | null; accessToken?: string }> {
+export async function getSession(): Promise<{ 
+  user: User | null; 
+  accessToken?: string;
+  organizations?: Organization[];
+  currentOrganizationId?: string;
+}> {
   try {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("wos-session")?.value;
@@ -70,9 +173,16 @@ export async function getSession(): Promise<{ user: User | null; accessToken?: s
 
     const user = payload.user as User;
     const accessToken = payload.accessToken as string;
+    const organizations = payload.organizations as Organization[];
+    const currentOrganizationId = payload.currentOrganizationId as string;
 
     if (user) {
-      return { user, accessToken };
+      if(organizations.length === 0) {
+        const serverOrganizations = await fetchUserOrganizations(user.id, user.firstName || '');
+        const defaultOrganizationId = serverOrganizations[0].id;
+        return { user, accessToken, organizations: serverOrganizations, currentOrganizationId: defaultOrganizationId };
+      }
+      return { user, accessToken, organizations, currentOrganizationId };
     }
 
     return { user: null };
@@ -250,6 +360,92 @@ export async function isSessionValid(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Session validation error:', error);
+    return false;
+  }
+}
+
+// Switch to a different organization
+export async function switchOrganization(organizationId: string): Promise<boolean> {
+  try {
+    const { user, organizations } = await getSession();
+    if (!user || !organizations) return false;
+
+    // Verify user has access to this organization
+    const hasAccess = organizations.some(org => org.id === organizationId);
+    if (!hasAccess) return false;
+
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("wos-session")?.value;
+
+    if (!sessionCookie || !WORKOS_COOKIE_PASSWORD) {
+      return false;
+    }
+
+    const secret = new TextEncoder().encode(WORKOS_COOKIE_PASSWORD);
+    const { payload } = await jwtVerify(sessionCookie, secret);
+
+    // Update current organization
+    const updatedPayload = {
+      ...payload,
+      currentOrganizationId: organizationId,
+      lastActivity: Date.now(),
+    };
+
+    const jwt = await new SignJWT(updatedPayload)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime("7d")
+      .sign(secret);
+
+    await setSessionCookie(jwt);
+    return true;
+  } catch (error) {
+    console.error('Failed to switch organization:', error);
+    return false;
+  }
+}
+
+// Refresh organizations in session (call after creating/joining organizations)
+export async function refreshOrganizations(): Promise<boolean> {
+  try {
+    const { user } = await getSession();
+    if (!user) return false;
+
+    const organizations = await fetchUserOrganizations(user.id, user.firstName || '');
+    
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("wos-session")?.value;
+
+    if (!sessionCookie || !WORKOS_COOKIE_PASSWORD) {
+      return false;
+    }
+
+    const secret = new TextEncoder().encode(WORKOS_COOKIE_PASSWORD);
+    const { payload } = await jwtVerify(sessionCookie, secret);
+
+    // Update organizations and ensure current org is still valid
+    const currentOrgStillExists = organizations.some(org => org.id === payload.currentOrganizationId);
+    const currentOrganizationId = currentOrgStillExists 
+      ? payload.currentOrganizationId as string
+      : (organizations.length > 0 ? organizations[0].id : undefined);
+
+    const updatedPayload = {
+      ...payload,
+      organizations,
+      currentOrganizationId,
+      lastActivity: Date.now(),
+    };
+
+    const jwt = await new SignJWT(updatedPayload)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime("7d")
+      .sign(secret);
+
+    await setSessionCookie(jwt);
+    return true;
+  } catch (error) {
+    console.error('Failed to refresh organizations:', error);
     return false;
   }
 }

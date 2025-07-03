@@ -1,44 +1,55 @@
-// src/app/sign-in/page.tsx
+// src/app/sign-up/page.tsx
 
-import { Metadata } from "next";
 import { Suspense } from "react";
 
+import { Metadata } from "next";
+import { redirect } from "next/navigation";
+
+import { getSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import SignInForm from "@/components/Auth/SignInForm";
 
-// Metadata for the sign-in page
+import SignUpForm from "@/components/Auth/signup-form";
+
+// Metadata for the sign-up page
 export const metadata: Metadata = {
-  title: "Sign In | Praxis AI",
-  description: "Sign in to your Praxis AI account to access powerful AI tools and build advanced language model applications.",
-  keywords: ["sign in", "login", "praxis", "ai", "authentication", "platform"],
+  title: "Sign Up | Praxis AI",
+  description: "Create your Praxis AI account to start building and deploying advanced AI applications with powerful language models.",
+  keywords: ["sign up", "register", "create account", "praxis", "ai", "platform"],
   robots: {
     index: false, // Don't index auth pages
     follow: true,
   },
   openGraph: {
-    title: "Sign In | Praxis AI",
-    description: "Sign in to your Praxis AI account to access powerful AI tools and build advanced language model applications.",
+    title: "Sign Up | Praxis AI",
+    description: "Create your Praxis AI account to start building and deploying advanced AI applications with powerful language models.",
     type: "website",
   },
   twitter: {
-    title: "Sign In | Praxis AI",
-    description: "Sign in to your Praxis AI account to access powerful AI tools.",
+    title: "Sign Up | Praxis AI",
+    description: "Create your Praxis AI account to start building with AI.",
     card: "summary",
   },
 };
 
-export default function SignInPage() {
+export default async function SignUpPage() {
+
+  const { user } = await getSession();
+
+  if (user) {
+    redirect('/');
+  }
+
   return (
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm md:max-w-3xl">
         <div className={cn("flex flex-col gap-4")}>
           <Suspense fallback={<Skeleton className="h-full w-full" />}>
-            <SignInForm />
+            <SignUpForm />
           </Suspense>
           <div className="text-muted-foreground text-center text-xs text-balance">
-            By signing in, you agree to our{" "}
+            By creating an account, you agree to our{" "}
             <a href="/terms-of-service" className="underline underline-offset-4 hover:text-primary">
               Terms of Service
             </a>{" "}
@@ -50,5 +61,5 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
-  )
+  );
 } 

@@ -34,7 +34,7 @@ export default function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
             <BreadcrumbItem>
               <BreadcrumbLink href="/" className="flex items-center gap-2">
                 <img src="/icons/icon_300.png" alt="Praxis AI" width={32} height={32} />
-                <span className="hidden md:block">Praxis AI</span>
+                Praxis AI
               </BreadcrumbLink>
             </BreadcrumbItem>
             {breadcrumbs.map((breadcrumb, index) => (

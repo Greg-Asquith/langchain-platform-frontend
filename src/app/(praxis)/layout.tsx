@@ -10,7 +10,7 @@ import { AppSidebar } from "@/components/AppSidebar/app-sidebar";
 
 export default async function PraxisLayout({ children }: { children: React.ReactNode }) {
 
-  const { user } = await getSession();
+  const { user, organizations, currentOrganizationId } = await getSession();
 
   if (!user) {
     redirect('/sign-in');
@@ -18,7 +18,11 @@ export default async function PraxisLayout({ children }: { children: React.React
 
   return (
     <SidebarProvider>
-      <AppSidebar user={user} />
+      <AppSidebar 
+        user={user} 
+        organizations={organizations || []}
+        currentOrganizationId={currentOrganizationId}
+      />
       <SidebarInset>
         {children}
       </SidebarInset> 

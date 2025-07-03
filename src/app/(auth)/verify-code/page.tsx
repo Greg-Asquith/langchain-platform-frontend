@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import VerifyCodeForm from "@/components/Auth/VerifyCode";
+import VerifyCodeForm from "@/components/Auth/verify-code";
 
 // Metadata for the verify code page
 export const metadata: Metadata = {

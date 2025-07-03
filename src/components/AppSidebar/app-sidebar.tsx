@@ -26,147 +26,84 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-import { User } from "@workos-inc/node";
+import { User, Organization } from "@workos-inc/node";
 
-// This is sample data.
+
+
+interface AppSidebarProps {
+  user: User
+  organizations: Organization[]
+  currentOrganizationId?: string
+}
+
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
   navMain: [
     {
-      title: "Playground",
+      title: "AI Workflows",
       url: "#",
       icon: SquareTerminal,
       isActive: true,
       items: [
         {
-          title: "History",
+          title: "Social Media Content",
           url: "#",
         },
         {
-          title: "Starred",
+          title: "Email Manager",
           url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
+        }
       ],
     },
     {
-      title: "Models",
+      title: "Agent Builder",
       url: "#",
       icon: Bot,
+      isActive: true,
       items: [
         {
-          title: "Genesis",
+          title: "Agents",
           url: "#",
         },
         {
-          title: "Explorer",
+          title: "Agent Templates",
           url: "#",
         },
         {
-          title: "Quantum",
+          title: "Tools",
           url: "#",
         },
       ],
     },
     {
-      title: "Documentation",
+      title: "Knowledge Base",
       url: "#",
       icon: BookOpen,
+      isActive: true,
       items: [
         {
-          title: "Introduction",
+          title: "Collections",
           url: "#",
         },
         {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
+          title: "Add Collection",
           url: "#",
         },
       ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
     },
   ],
 }
 
-export function AppSidebar({ user }: { user: User }) {
+export function AppSidebar({ user, organizations, currentOrganizationId }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher 
+          organizations={organizations} 
+          currentOrganizationId={currentOrganizationId}
+        />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />
