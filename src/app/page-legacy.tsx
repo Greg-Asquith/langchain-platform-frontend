@@ -5,20 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getSession } from '@/lib/session';
 
-async function handleSignOut() {
-  'use server';
-  
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/logout`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (response.ok) {
-    redirect('/sign-in');
-  }
-}
+import { handleSignOut } from '@/lib/logout';
 
 export default async function HomePage() {
   // Check if user is authenticated using our custom session management

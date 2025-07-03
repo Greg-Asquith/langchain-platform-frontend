@@ -26,6 +26,8 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
+import { User } from "@workos-inc/node";
+
 // This is sample data.
 const data = {
   user: {
@@ -156,9 +158,9 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ user }: { user: User }) {
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
@@ -167,7 +169,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

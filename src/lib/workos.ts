@@ -4,6 +4,8 @@
  * This file is used to initialize the WorkOS SDK
 */
 
+import { redirect } from "next/navigation";
+
 import { WorkOS } from "@workos-inc/node";
 
 if (!process.env.WORKOS_API_KEY) {
