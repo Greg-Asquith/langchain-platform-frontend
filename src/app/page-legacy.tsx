@@ -25,7 +25,7 @@ export default async function HomePage() {
             Welcome back{user.firstName && `, ${user.firstName}`}!
           </h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-            You&apos;re successfully signed in to LangChain Platform
+            You&apos;re successfully signed in to Praxis AI
           </p>
         </div>
         

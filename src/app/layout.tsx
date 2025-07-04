@@ -67,8 +67,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "LangChain Platform",
-    description: "Build, deploy, and scale AI applications with LangChain Platform. Powerful tools for developers to create intelligent agents, chatbots, and AI-powered workflows with ease.",
+    title: "Praxis AI",
+    description: "Build, deploy, and scale AI applications with Praxis AI. Powerful tools for developers to create intelligent agents, chatbots, and AI-powered workflows with ease.",
     images: ["/og-image.png"],
     creator: "@Greg_Asquith",
   },

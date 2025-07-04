@@ -19,6 +19,7 @@ const PUBLIC_API_ROUTES = [
 // Define private API routes that need authentication
 const PRIVATE_API_ROUTES: string[] = [
     '/api/teams/',
+    '/api/user/'
 ];
 
 export async function middleware(request: NextRequest) {

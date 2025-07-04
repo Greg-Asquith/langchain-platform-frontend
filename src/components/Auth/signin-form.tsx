@@ -95,7 +95,7 @@ export default function SignInForm() {
             <div className="flex flex-col items-center text-center">
               <h1 className="text-xl font-bold mb-2">Welcome back</h1>
               <p className="text-muted-foreground text-sm text-balance">
-                Login to your LangChain Platform account
+                Login to your Praxis AI account
               </p>
             </div>
 
@@ -216,9 +216,9 @@ export default function SignInForm() {
             <div className="absolute inset-0 bg-black/20 dark:bg-black/50" />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center text-white space-y-3 p-6">
-                <h2 className="text-2xl font-bold">LangChain Platform</h2>
+                <h2 className="text-2xl font-bold">Praxis AI</h2>
                 <p className="text-base opacity-90">
-                  The ultimate platform for building and deploying AI applications via LangChain
+                  The ultimate platform for building and deploying AI applications
                 </p>
                 <div className="space-y-2 text-xs opacity-75">
                   <p>⚒️ Build your own AI Agents</p>

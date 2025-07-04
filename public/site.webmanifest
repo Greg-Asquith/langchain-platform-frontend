@@ -1,7 +1,7 @@
 {
-  "name": "LangChain Platform",
-  "short_name": "LangChain",
-  "description": "A platform for building and deploying LangChain applications",
+  "name": "Praxis AI",
+  "short_name": "Praxis",
+  "description": "A platform for building and deploying AI applications",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

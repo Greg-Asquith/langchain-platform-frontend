@@ -292,6 +292,43 @@ export async function refreshSession(): Promise<boolean> {
   }
 }
 
+// Update the session with fresh user data
+export async function updateSessionWithUserData(updatedUser: User): Promise<boolean> {
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("wos-session")?.value;
+
+    if (!sessionCookie || !WORKOS_COOKIE_PASSWORD) {
+      return false;
+    }
+
+    const secret = new TextEncoder().encode(WORKOS_COOKIE_PASSWORD);
+    const { payload } = await jwtVerify(sessionCookie, secret);
+
+    // Update the session with the new user data while preserving other session data
+    const updatedPayload = {
+      ...payload,
+      user: updatedUser,
+      lastActivity: Date.now(),
+    };
+
+    const rememberMe = payload.rememberMe as boolean || false;
+    const newExpiry = rememberMe ? "30d" : "7d";
+
+    const jwt = await new SignJWT(updatedPayload)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(newExpiry)
+      .sign(secret);
+
+    await setSessionCookie(jwt);
+    return true;
+  } catch (error) {
+    console.error('Failed to update session with user data:', error);
+    return false;
+  }
+}
+
 // Get the session info
 export async function getSessionInfo(): Promise<{
   isActive: boolean;
