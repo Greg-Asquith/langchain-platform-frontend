@@ -1,33 +1,18 @@
+// src/components/AppSidebar/app-sidebar.tsx
+
 "use client"
 
 import * as React from "react"
-import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,
-} from "lucide-react"
 
-import { NavMain } from "@/components/AppSidebar/nav-main"
-import { NavProjects } from "@/components/AppSidebar/nav-projects"
-import { NavUser } from "@/components/AppSidebar/nav-user"
-import { TeamSwitcher } from "@/components/AppSidebar/team-switcher"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarRail,
-} from "@/components/ui/sidebar"
+import { BookOpen, Bot, SquareTerminal } from "lucide-react"
 
 import { User, Organization } from "@workos-inc/node";
 
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar"
+
+import { NavMain } from "@/components/AppSidebar/nav-main"
+import { NavUser } from "@/components/AppSidebar/nav-user"
+import { TeamSwitcher } from "@/components/AppSidebar/team-switcher"
 
 
 interface AppSidebarProps {

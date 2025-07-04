@@ -1,10 +1,12 @@
-// src/components/Auth/VerifyCode/index.tsx
+// src/components/Auth/verify-code.tsx
 
 "use client";
 
 import { useState, useEffect } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
+
+import { Loader2, Mail, ArrowLeft } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,7 @@ export default function VerifyCodeForm() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const router = useRouter();
@@ -33,6 +36,12 @@ export default function VerifyCodeForm() {
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (code.length !== 6) {
+      setError("Please enter the complete 6-digit code");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
@@ -48,7 +57,7 @@ export default function VerifyCodeForm() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage("Authentication successful! Redirecting...");
+        setMessage("Email verified successfully! Redirecting...");
         // Redirect to home page or dashboard
         setTimeout(() => {
           router.push("/");
@@ -66,11 +75,12 @@ export default function VerifyCodeForm() {
   };
 
   const handleResendCode = async () => {
-    setIsLoading(true);
+    setIsResending(true);
     setError("");
     setMessage("");
 
     try {
+      // Check if this is for sign up or sign in by trying to resend via magic-link first
       const response = await fetch("/api/auth/magic-link", {
         method: "POST",
         headers: {
@@ -83,6 +93,12 @@ export default function VerifyCodeForm() {
 
       if (response.ok) {
         setMessage("New verification code sent to your email");
+      } else if (response.status === 404) {
+        // User doesn't exist, this was probably a sign up that failed
+        setError("Account not found. Please try signing up again.");
+        setTimeout(() => {
+          router.push("/sign-up");
+        }, 2000);
       } else {
         setError(data.error || "Failed to resend verification code");
       }
@@ -90,7 +106,7 @@ export default function VerifyCodeForm() {
       setError("An unexpected error occurred");
       console.error(error);
     } finally {
-      setIsLoading(false);
+      setIsResending(false);
     }
   };
 
@@ -98,8 +114,22 @@ export default function VerifyCodeForm() {
     router.push("/sign-in");
   };
 
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setCode(value);
+    
+    // Clear error when user starts typing
+    if (error) {
+      setError("");
+    }
+  };
+
   if (!email) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -108,11 +138,14 @@ export default function VerifyCodeForm() {
         <form onSubmit={handleVerifyCode} className="p-4 md:p-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col items-center text-center">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-orange to-orange/70 mb-4">
+                <Mail className="h-6 w-6 text-white" />
+              </div>
               <h1 className="text-xl font-bold mb-2">Verify Your Email</h1>
               <p className="text-muted-foreground text-sm text-balance">
                 We&apos;ve sent a 6-digit code to your email
               </p>
-              <p className="font-medium text-sm mt-1">{email}</p>
+              <p className="font-medium text-sm mt-1 break-all">{email}</p>
             </div>
 
             {error && (
@@ -123,7 +156,7 @@ export default function VerifyCodeForm() {
             )}
 
             {message && (
-              <Alert variant="success">
+              <Alert className="border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                 <AlertDescription>{message}</AlertDescription>
               </Alert>
             )}
@@ -136,12 +169,12 @@ export default function VerifyCodeForm() {
                 id="code"
                 type="text"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={handleCodeChange}
                 required
                 placeholder="000000"
                 maxLength={6}
                 disabled={isLoading}
-                className="text-center font-mono tracking-widest text-sm"
+                className="text-center font-mono tracking-widest text-lg h-12"
                 autoComplete="one-time-code"
                 autoFocus
               />
@@ -152,11 +185,17 @@ export default function VerifyCodeForm() {
 
             <Button 
               type="submit" 
-              variant="orange"
-              className="w-full text-sm h-9"
+              className="w-full text-sm h-9 bg-gradient-to-r from-orange to-orange/70 hover:from-orange/80 hover:to-orange/80"
               disabled={isLoading || code.length !== 6}
             >
-              {isLoading ? "Verifying..." : "Verify Code"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify Code"
+              )}
             </Button>
 
             <div className="grid gap-2">
@@ -165,9 +204,16 @@ export default function VerifyCodeForm() {
                 variant="outline" 
                 className="w-full text-sm h-9"
                 onClick={handleResendCode}
-                disabled={isLoading}
+                disabled={isLoading || isResending}
               >
-                Resend Code
+                {isResending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Resend Code"
+                )}
               </Button>
 
               <Button 
@@ -177,15 +223,14 @@ export default function VerifyCodeForm() {
                 onClick={handleBackToSignIn}
                 disabled={isLoading}
               >
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Sign In
               </Button>
             </div>
 
-            <div className="text-center text-xs">
-              Having trouble?{" "}
-              <a href="/sign-in" className="underline underline-offset-4">
-                Try again
-              </a>
+            <div className="text-center text-xs text-muted-foreground">
+              <p>Having trouble?</p>
+              <p>Check your spam folder or try requesting a new code.</p>
             </div>
           </div>
         </form>
@@ -196,7 +241,7 @@ export default function VerifyCodeForm() {
               <div className="text-center text-white space-y-3 p-6">
                 <h2 className="text-2xl font-bold">Almost There!</h2>
                 <p className="text-base opacity-90">
-                  Check your email for the verification code to complete your login
+                  Check your email for the verification code to complete your setup
                 </p>
                 <div className="space-y-2 text-xs opacity-75">
                   <p>🔐 Secure authentication</p>
@@ -210,4 +255,4 @@ export default function VerifyCodeForm() {
       </CardContent>
     </Card>
   );
-} 
+}

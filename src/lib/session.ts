@@ -104,8 +104,11 @@ async function fetchUserOrganizations(userId: string, userFirstName: string): Pr
               state: d.state,
             })) || [],
             metadata: {
-              personal: org.metadata?.personal ? "true" : "false",
+              personal: org.metadata?.personal === "true" ? "true" : "false",
               colour: org.metadata?.colour,
+              createdBy: org.metadata?.createdBy,
+              createdAt: org.metadata?.createdAt,
+              description: org.metadata?.description,
             },
           });
         } catch (error) {
@@ -177,7 +180,7 @@ export async function getSession(): Promise<{
     const currentOrganizationId = payload.currentOrganizationId as string;
 
     if (user) {
-      if(organizations.length === 0) {
+      if(!organizations || organizations.length === 0) {
         const serverOrganizations = await fetchUserOrganizations(user.id, user.firstName || '');
         const defaultOrganizationId = serverOrganizations[0].id;
         return { user, accessToken, organizations: serverOrganizations, currentOrganizationId: defaultOrganizationId };

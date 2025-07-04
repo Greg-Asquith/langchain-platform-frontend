@@ -18,10 +18,7 @@ const PUBLIC_API_ROUTES = [
 
 // Define private API routes that need authentication
 const PRIVATE_API_ROUTES: string[] = [
-  // Add your private API routes here, e.g.:
-  // '/api/user/',
-  // '/api/dashboard/',
-  // '/api/projects/',
+    '/api/teams/',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -76,6 +73,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname === "/sign-in" ||
     pathname === "/sign-up" ||
+    pathname === "/verify-code" ||
     pathname === "/callback"
   ) {
     return NextResponse.next();

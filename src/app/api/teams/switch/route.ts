@@ -1,5 +1,12 @@
+// src/app/api/teams/switch/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
+
+import { workos } from "@/lib/workos";
+
+
 import { getSession, switchOrganization } from "@/lib/session";
+import { validateTeamId } from "@/lib/teams";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +22,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { organizationId } = body;
 
-    if (!organizationId || typeof organizationId !== 'string') {
+    if (!validateTeamId(organizationId)) {
       return NextResponse.json(
         { error: "Organization ID is required" },
         { status: 400 }
@@ -26,9 +33,26 @@ export async function POST(request: NextRequest) {
     const hasAccess = organizations?.some(org => org.id === organizationId);
     if (!hasAccess) {
       return NextResponse.json(
-        { error: "Access denied to this organization" },
+        { error: "Access denied to this team" },
         { status: 403 }
       );
+    }
+
+    // Get user's role in the organization
+    let userRole = 'member'; // default role
+    try {
+      const memberships = await workos.userManagement.listOrganizationMemberships({
+        userId: user.id,
+        organizationId: organizationId,
+      });
+      
+      const membership = memberships.data.find(m => m.organizationId === organizationId);
+      if (membership?.role?.slug) {
+        userRole = membership.role.slug;
+      }
+    } catch (error) {
+      console.error('Failed to fetch user role:', error);
+      // Continue with default role
     }
 
     // Switch to the organization
@@ -36,7 +60,7 @@ export async function POST(request: NextRequest) {
     
     if (!success) {
       return NextResponse.json(
-        { error: "Failed to switch organization" },
+        { error: "Failed to switch team" },
         { status: 500 }
       );
     }
@@ -46,13 +70,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       currentOrganization: currentOrg,
+      userRole: userRole,
     });
 
   } catch (error) {
-    console.error("Failed to switch organization:", error);
+    console.error("Failed to switch team:", error);
     
     return NextResponse.json(
-      { error: "Failed to switch organization" },
+      { error: "Failed to switch team" },
       { status: 500 }
     );
   }

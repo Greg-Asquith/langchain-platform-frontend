@@ -1,6 +1,6 @@
 // src/app/(praxis)/page.tsx
 
-import AppHeader from "@/components/AppHeader/app-header"
+import { AppHeader } from "@/components/AppHeader/app-header"
 
 export default function Page() {
   return (

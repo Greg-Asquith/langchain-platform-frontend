@@ -43,11 +43,11 @@ export function NavUser({ user }: { user: User }) {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.profilePictureUrl || ""} alt={user.firstName + " " + user.lastName} />
-                <AvatarFallback className="rounded-lg">{user.firstName?.charAt(0) || "" + user.lastName?.charAt(0) || ""}</AvatarFallback>
+                <AvatarImage src={user.profilePictureUrl || ""} alt={`${user.firstName || ''} ${user.lastName || ''}`.trim()} />
+                <AvatarFallback className="rounded-lg">{(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '')}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.firstName + " " + user.lastName}</span>
+                <span className="truncate font-medium">{`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}</span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -62,11 +62,11 @@ export function NavUser({ user }: { user: User }) {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.profilePictureUrl || ""} alt={user.firstName + " " + user.lastName} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarImage src={user.profilePictureUrl || ""} alt={`${user.firstName || ''} ${user.lastName || ''}`.trim()} />
+                  <AvatarFallback className="rounded-lg">{(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '')}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.firstName + " " + user.lastName}</span>
+                  <span className="truncate font-medium">{`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}</span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
               </div>
@@ -74,7 +74,7 @@ export function NavUser({ user }: { user: User }) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <a href="admin/user-profile">
+                <a href="/admin/user-profile">
                   <UserPen />
                   My Profile
                 </a>
@@ -83,7 +83,7 @@ export function NavUser({ user }: { user: User }) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <a href="admin/teams">
+                <a href="/admin/teams">
                   <UsersIcon />
                   My Teams
                 </a>

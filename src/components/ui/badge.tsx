@@ -17,6 +17,14 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        redorange:
+          "border-transparent bg-redorange text-white [a&]:hover:bg-redorange/90",
+        yellow:
+          "border-transparent bg-yellow text-white [a&]:hover:bg-yellow/90",
+        chartreuse:
+          "border-transparent bg-chartreuse text-white [a&]:hover:bg-chartreuse/90",
+        orange:
+          "border-transparent bg-orange text-white [a&]:hover:bg-orange/90",
       },
     },
     defaultVariants: {
