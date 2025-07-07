@@ -4,7 +4,6 @@
  * This file is used to protect routes that are not authenticated
  * It is used to redirect users to the sign-in page if they are not authenticated
  * It is also used to redirect users to the sign-in page if they are not authenticated
- * It is also used to redirect users to the sign-in page if they are not authenticated
 */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -75,7 +74,9 @@ export async function middleware(request: NextRequest) {
     pathname === "/sign-in" ||
     pathname === "/sign-up" ||
     pathname === "/verify-code" ||
-    pathname === "/callback"
+    pathname === "/callback" ||
+    pathname === "/terms-of-service" ||
+    pathname === "/privacy-policy"
   ) {
     return NextResponse.next();
   }

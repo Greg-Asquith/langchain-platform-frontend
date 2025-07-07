@@ -204,9 +204,69 @@ export async function setSessionCookie(sealedSession: string) {
     path: '/',
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict', // Changed from 'lax' to 'strict' for better CSRF protection
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
+}
+
+// Generate CSRF token
+export async function generateCSRFToken(): Promise<string> {
+  const { user } = await getSession();
+  if (!user) {
+    throw new Error('No active session');
+  }
+
+  const payload = {
+    userId: user.id,
+    timestamp: Date.now(),
+    nonce: crypto.randomUUID(),
+  };
+
+  if (!WORKOS_COOKIE_PASSWORD) {
+    throw new Error('Missing WORKOS_COOKIE_PASSWORD');
+  }
+
+  const secret = new TextEncoder().encode(WORKOS_COOKIE_PASSWORD);
+  const token = await new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('1h') // CSRF tokens should be short-lived
+    .sign(secret);
+
+  return token;
+}
+
+// Verify CSRF token
+export async function verifyCSRFToken(token: string): Promise<boolean> {
+  try {
+    const { user } = await getSession();
+    if (!user) {
+      return false;
+    }
+
+    if (!WORKOS_COOKIE_PASSWORD) {
+      return false;
+    }
+
+    const secret = new TextEncoder().encode(WORKOS_COOKIE_PASSWORD);
+    const { payload } = await jwtVerify(token, secret);
+
+    // Verify the token is for the current user
+    if (payload.userId !== user.id) {
+      return false;
+    }
+
+    // Check if token is not too old (additional safety check)
+    const timestamp = payload.timestamp as number;
+    const oneHour = 60 * 60 * 1000;
+    if (Date.now() - timestamp > oneHour) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('CSRF token verification failed:', error);
+    return false;
+  }
 }
 
 // Clear the wos session cookie

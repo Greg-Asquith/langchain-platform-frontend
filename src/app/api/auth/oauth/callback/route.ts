@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
             return response;
 
           } catch (orgAuthError) {
+            console.error("Organization authentication error:", orgAuthError);
             return NextResponse.redirect(
               `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/sign-in?error=${encodeURIComponent("organization_auth_failed")}`
             );

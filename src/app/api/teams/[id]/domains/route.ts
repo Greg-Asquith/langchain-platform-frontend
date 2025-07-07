@@ -20,10 +20,7 @@ const addDomainSchema = z.object({
 });
 
 // Add domain to team
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -40,7 +37,8 @@ export async function POST(
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error parsing JSON in request body:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -195,7 +193,7 @@ export async function POST(
       message: "Domain added successfully"
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to add domain:", error);
     
     return NextResponse.json(
@@ -206,10 +204,7 @@ export async function POST(
 }
 
 // Get domains for team
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -262,7 +257,7 @@ export async function GET(
       isPersonalTeam: organization.metadata?.personal === "true"
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to get domains:", error);
     
     return NextResponse.json(

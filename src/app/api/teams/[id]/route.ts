@@ -23,7 +23,7 @@ const updateTeamSchema = z.object({
 });
 
 // Update team settings
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 
   try {
     const { user, organizations } = await getSession();
@@ -41,7 +41,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error parsing JSON in request body:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -194,7 +195,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // Delete team
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 
   try {
     const { user, organizations } = await getSession();

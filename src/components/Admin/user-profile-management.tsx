@@ -7,7 +7,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, User, Shield, CheckCircle, XCircle, Calendar, Mail, Loader2, Upload, Trash2, ExternalLink, Info, Eye, EyeOff } from "lucide-react";
+import { User, Shield, CheckCircle, XCircle, Calendar, Mail, Loader2, ExternalLink, Info } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -34,12 +34,6 @@ const profileUpdateSchema = z.object({
     .min(1, "Last name is required")
     .max(50, "Last name must be less than 50 characters")
     .regex(/^[a-zA-Z\s\-']+$/, "Last name can only contain letters, spaces, hyphens, and apostrophes"),
-});
-
-const pictureUrlSchema = z.object({
-  imageUrl: z.string()
-    .url("Please enter a valid URL")
-    .min(1, "Image URL is required"),
 });
 
 interface UserProfileManagementProps {
@@ -89,26 +83,6 @@ export function UserProfileManagement({ user: initialUser }: UserProfileManageme
       }
     } else {
       toast.error(defaultMessage);
-    }
-  };
-
-  // Refresh user data
-  const refreshUserData = async () => {
-    try {
-      const response = await fetch('/api/user/profile', {
-        method: 'GET',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        profileForm.reset({
-          firstName: data.user.firstName || "",
-          lastName: data.user.lastName || "",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to refresh user data:', error);
     }
   };
 

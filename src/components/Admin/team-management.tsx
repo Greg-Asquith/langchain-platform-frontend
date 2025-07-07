@@ -12,9 +12,10 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
-import { Organization, Invitation } from "@workos-inc/node";
+import { Organization, Invitation, RoleResponse } from "@workos-inc/node";
 
 import { TEAM_COLORS } from "@/lib/teams";
+import { handleFetchResponse, handleClientError } from "@/lib/error-handler";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,7 +36,7 @@ interface EnhancedMember {
   id: string;
   userId: string;
   organizationId: string;
-  role: any;
+  role: RoleResponse;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -85,14 +86,6 @@ interface TeamManagementProps {
   currentUserId: string
 }
 
-interface ApiError {
-  error: string
-  details?: Array<{
-    field: string
-    message: string
-  }>
-}
-
 export function TeamManagement({ organization, members, invitations, currentUserId }: TeamManagementProps) {
 
   const router = useRouter();
@@ -131,26 +124,24 @@ export function TeamManagement({ organization, members, invitations, currentUser
   const currentUserMembership = members.find(member => member.userId === currentUserId);
   const isCurrentUserAdmin = currentUserMembership?.role?.slug === 'admin';
 
-  // Enhanced error handling function
+  // Centralized error handling function
   const handleApiError = (error: unknown, defaultMessage: string) => {
-    console.error(defaultMessage, error);
-    
-    if (error instanceof Error) {
-      try {
-        const apiError: ApiError = JSON.parse(error.message);
-        if (apiError.details) {
-          // Show field-specific validation errors
-          apiError.details.forEach(detail => {
-            toast.error(`${detail.field}: ${detail.message}`);
-          });
-        } else {
-          toast.error(apiError.error || defaultMessage);
-        }
-      } catch {
-        toast.error(error.message || defaultMessage);
+    const appError = handleClientError(error, {
+      fallbackMessage: defaultMessage,
+      showToast: false, // We'll handle toast display manually
+      onError: (err) => {
+        console.error(`${defaultMessage}:`, err);
       }
+    });
+    
+    // Display error message via toast
+    if (appError.context?.details) {
+      // Show field-specific validation errors
+      appError.context.details.forEach((detail: { field: string; message: string }) => {
+        toast.error(`${detail.field}: ${detail.message}`);
+      });
     } else {
-      toast.error(defaultMessage);
+      toast.error(appError.message);
     }
   };
 
@@ -204,11 +195,8 @@ export function TeamManagement({ organization, members, invitations, currentUser
         body: JSON.stringify(data),
       });
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(JSON.stringify(result));
-      }
+      // Use centralized response handling
+      await handleFetchResponse(response);
 
       // Force refresh to update sidebar and all organization data
       router.refresh();
@@ -585,7 +573,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
                 General Settings
               </CardTitle>
               <CardDescription>
-                Update your team's basic information and appearance
+                Update your team&apos;s basic information and appearance
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -606,7 +594,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
                             />
                           </FormControl>
                           <FormDescription>
-                            This is your team's display name
+                            This is your team&apos;s display name
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -679,7 +667,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
                           </div>
                         </FormControl>
                         <FormDescription>
-                          Choose a color for your team's icon
+                            Choose a color for your team&apos;s icon
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1022,7 +1010,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
                   Pending Invitations ({invitations.length})
                 </CardTitle>
                 <CardDescription>
-                  Invitations that haven't been accepted yet
+                  Invitations that haven&apos;t been accepted yet
                 </CardDescription>
               </CardHeader>
               <CardContent>

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { workos } from '@/lib/workos';
 import { TeamManagement } from '@/components/Admin/team-management';
-import { Invitation } from '@workos-inc/node';
+import { Invitation, RoleResponse } from '@workos-inc/node';
 import { AppHeader } from '@/components/AppHeader/app-header';
 import { TypographyH1 } from '@/components/ui/header-1';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ interface EnhancedMember {
   id: string;
   userId: string;
   organizationId: string;
-  role: any;
+  role: RoleResponse;
   status: string;
   createdAt: string;
   updatedAt: string;

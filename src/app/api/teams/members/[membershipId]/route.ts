@@ -6,7 +6,7 @@ import { getSession } from "@/lib/session";
 import { validateMembershipId, validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
 
-export async function DELETE(request: NextRequest, { params }: { params: { membershipId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ membershipId: string }> }) {
 
   try {
     const { user, currentOrganizationId } = await getSession();
@@ -166,7 +166,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { membe
 }
 
 // Get member details
-export async function GET(request: NextRequest, { params }: { params: { membershipId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ membershipId: string }> }) {
   try {
     const { user, currentOrganizationId } = await getSession();
     

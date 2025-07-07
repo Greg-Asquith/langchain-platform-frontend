@@ -99,7 +99,7 @@ export function TeamSwitcher({ organizations, currentOrganizationId }: TeamSwitc
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Teams
             </DropdownMenuLabel>
-            {organizations.map((org, index) => (
+            {organizations.map((org) => (
               <DropdownMenuItem
                 key={org.id}
                 onClick={() => handleSwitchTeam(org.id)}

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // If no refresh token in body, try to get from cookies
     if (!refreshToken) {
-      const sessionCookie = request.cookies.get("session");
+      const sessionCookie = request.cookies.get("wos-session");
       if (sessionCookie) {
         try {
           const { payload } = await jwtVerify(sessionCookie.value, SECRET_KEY);
@@ -34,12 +34,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: For now, we'll extend the current session since WorkOS token refresh
-    // methods might not be available in this SDK version
+    // TODO: For now, we'll extend the current session since WorkOS token refresh methods might not be available in this SDK version
     // In a production environment, you'd implement proper token refresh
     
     // Get current session data
-    const sessionCookie = request.cookies.get("session");
+    const sessionCookie = request.cookies.get("wos-session");
     if (!sessionCookie) {
       return NextResponse.json(
         { error: "No active session found" },
@@ -69,7 +68,7 @@ export async function POST(request: NextRequest) {
       message: "Session refreshed successfully",
     });
 
-    response.cookies.set("session", jwt, {
+    response.cookies.set("wos-session", jwt, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

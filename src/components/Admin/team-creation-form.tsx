@@ -315,7 +315,7 @@ export function TeamCreationForm() {
                       </div>
                     </FormControl>
                     <FormDescription className="text-sm">
-                      Choose a color for your team's icon and branding
+                      Choose a color for your team&apos;s icon and branding
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       lastActivity: updatedSessionData.lastActivity,
     });
 
-    response.cookies.set("session", jwt, {
+    response.cookies.set("wos-session", jwt, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

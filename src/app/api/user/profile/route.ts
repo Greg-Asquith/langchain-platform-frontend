@@ -19,14 +19,6 @@ const updateProfileSchema = z.object({
     .regex(/^[a-zA-Z\s\-']+$/, "Last name can only contain letters, spaces, hyphens, and apostrophes"),
 });
 
-interface ApiError {
-  error: string
-  details?: Array<{
-    field: string
-    message: string
-  }>
-}
-
 // Get user profile
 export async function GET() {
   try {
@@ -43,7 +35,7 @@ export async function GET() {
     let freshUserData;
     try {
       freshUserData = await workos.userManagement.getUser(user.id);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch user data:', error);
       return NextResponse.json(
         { error: "Failed to fetch user data" },
@@ -64,7 +56,7 @@ export async function GET() {
       },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to get user profile:", error);
     
     return NextResponse.json(
@@ -90,7 +82,8 @@ export async function PUT(request: NextRequest) {
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error parsing JSON in request body:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -122,11 +115,11 @@ export async function PUT(request: NextRequest) {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to update user profile:', error);
       
       // Handle specific WorkOS errors
-      if (error instanceof Error) {
+      if (error instanceof Error && error.message.includes('not found')) {
         if (error.message.includes('not found')) {
           return NextResponse.json(
             { error: "User not found" },
@@ -161,7 +154,7 @@ export async function PUT(request: NextRequest) {
       message: "Profile updated successfully"
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to update user profile:", error);
     
     return NextResponse.json(

@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error parsing JSON in request body:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -150,7 +151,8 @@ export async function POST(request: NextRequest) {
           );
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error checking if user exists:", error);
       // User doesn't exist yet, which is fine for invitations
       console.log('User not found, proceeding with invitation');
     }
@@ -250,7 +252,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to create invitation:", error);
     
     return NextResponse.json(
@@ -316,7 +318,7 @@ export async function GET(request: NextRequest) {
       // Check if this is a personal team
       const organization = await workos.organizations.getOrganization(currentOrganizationId || '');
       isPersonalTeam = organization.metadata?.personal === "true";
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to check admin status:', error);
     }
 
@@ -347,7 +349,7 @@ export async function GET(request: NextRequest) {
       isPersonalTeam,
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to get invitations:", error);
     
     return NextResponse.json(

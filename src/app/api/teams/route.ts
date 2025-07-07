@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { DomainData } from "@workos-inc/node";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession, refreshOrganizations } from "@/lib/session";
 import { workos } from "@/lib/workos";
 
@@ -26,7 +27,7 @@ const createTeamSchema = z.object({
     .default([]),
 });
 
-export async function GET(request: NextRequest) {
+export async function GET() {
 
   try {
     const { user, organizations } = await getSession();
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
     const { user } = await getSession();
     
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error parsing JSON in request body:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -113,11 +115,11 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         domainData: domainData as unknown as DomainData[],
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create team:', error);
       
       // Handle specific WorkOS errors
-      if (error instanceof Error) {
+      if (error instanceof Error && error.message.includes('domain')) {
         if (error.message.includes('domain')) {
           return NextResponse.json(
             { error: "One or more domains are already in use by another team" },
@@ -125,7 +127,7 @@ export async function POST(request: NextRequest) {
           );
         }
         
-        if (error.message.includes('name')) {
+        if (error instanceof Error && error.message.includes('name')) {
           return NextResponse.json(
             { error: "Team name is already taken" },
             { status: 409 }
@@ -153,13 +155,13 @@ export async function POST(request: NextRequest) {
           description: description || "",
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to update team metadata:', error);
       
       // Try to clean up the created organization
       try {
         await workos.organizations.deleteOrganization(organization.id);
-      } catch (cleanupError) {
+      } catch (cleanupError: unknown) {
         console.error('Failed to cleanup team after metadata update failure:', cleanupError);
       }
       
@@ -176,13 +178,13 @@ export async function POST(request: NextRequest) {
         organizationId: organization.id,
         roleSlug: 'admin',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to add user as admin:', error);
       
       // Try to clean up the created organization
       try {
         await workos.organizations.deleteOrganization(organization.id);
-      } catch (cleanupError) {
+      } catch (cleanupError: unknown) {
         console.error('Failed to cleanup team after membership creation failure:', cleanupError);
       }
       
@@ -195,7 +197,7 @@ export async function POST(request: NextRequest) {
     // Refresh organizations in session to update sidebar
     try {
       await refreshOrganizations();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to refresh teams in session:', error);
       // Don't fail the request if session refresh fails
     }
@@ -215,7 +217,7 @@ export async function POST(request: NextRequest) {
       message: "Team created successfully"
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to create team:", error);
     
     return NextResponse.json(
@@ -223,4 +225,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

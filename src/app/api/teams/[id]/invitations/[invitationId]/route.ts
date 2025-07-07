@@ -2,24 +2,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-import { z } from "zod";
-
 import { getSession } from "@/lib/session";
 import { validateTeamId, validateInvitationId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
 
-// Input validation schema for role updates
-const roleUpdateSchema = z.object({
-  role: z.enum(["admin", "member"], {
-    required_error: "Role must be either 'admin' or 'member'",
-  }),
-});
-
 // Revoke invitation
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string; invitationId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -64,7 +52,7 @@ export async function DELETE(
         userId: user.id,
         organizationId: teamId,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch team memberships:', error);
       return NextResponse.json(
         { error: "Failed to verify permissions" },
@@ -84,7 +72,7 @@ export async function DELETE(
     let invitation;
     try {
       invitation = await workos.userManagement.getInvitation(invitationId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch invitation:', error);
       return NextResponse.json(
         { error: "Invitation not found" },
@@ -117,7 +105,7 @@ export async function DELETE(
     // Revoke the invitation
     try {
       await workos.userManagement.revokeInvitation(invitationId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to revoke invitation:', error);
       
       // Handle specific WorkOS errors
@@ -144,7 +132,7 @@ export async function DELETE(
       },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to revoke invitation:", error);
     
     return NextResponse.json(
@@ -155,10 +143,7 @@ export async function DELETE(
 }
 
 // Get invitation details
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string; invitationId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -200,7 +185,7 @@ export async function GET(
     let invitation;
     try {
       invitation = await workos.userManagement.getInvitation(invitationId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch invitation:', error);
       return NextResponse.json(
         { error: "Invitation not found" },
@@ -228,7 +213,7 @@ export async function GET(
       },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to get invitation:", error);
     
     return NextResponse.json(
@@ -239,10 +224,7 @@ export async function GET(
 }
 
 // Resend invitation
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string; invitationId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -287,7 +269,7 @@ export async function POST(
         userId: user.id,
         organizationId: teamId,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch team memberships:', error);
       return NextResponse.json(
         { error: "Failed to verify permissions" },
@@ -307,7 +289,7 @@ export async function POST(
     let invitation;
     try {
       invitation = await workos.userManagement.getInvitation(invitationId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch invitation:', error);
       return NextResponse.json(
         { error: "Invitation not found" },
@@ -389,117 +371,8 @@ export async function POST(
       },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to resend invitation:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
-  }
-}
-
-// Update invitation role (if supported by WorkOS)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string; invitationId: string } }
-) {
-  try {
-    const { user, organizations } = await getSession();
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const { id: teamId, invitationId } = await params;
-
-    // Validate UUID format for team ID
-    if (!validateTeamId(teamId)) {
-      return NextResponse.json(
-        { error: "Invalid team ID format" },
-        { status: 400 }
-      );
-    }
-
-    // Validate UUID format for invitation ID
-    if (!validateInvitationId(invitationId)) {
-      return NextResponse.json(
-        { error: "Invalid invitation ID format" },
-        { status: 400 }
-      );
-    }
-
-    // Parse and validate request body
-    let body;
-    try {
-      body = await request.json();
-    } catch (error) {
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
-      );
-    }
-
-    // Validate input data
-    const validationResult = roleUpdateSchema.safeParse(body);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check if user has access to this organization
-    const hasAccess = organizations?.some(org => org.id === teamId);
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this team" },
-        { status: 403 }
-      );
-    }
-
-    // Check if user is admin of the organization
-    let memberships;
-    try {
-      memberships = await workos.userManagement.listOrganizationMemberships({
-        userId: user.id,
-        organizationId: teamId,
-      });
-    } catch (error) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
-      );
-    }
-
-    const membership = memberships.data.find(m => m.organizationId === teamId);
-    if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only team admins can update invitation roles" },
-        { status: 403 }
-      );
-    }
-
-    // Note: WorkOS may not support updating invitation roles directly
-    // This would require creating a new invitation with the new role
-    // and revoking the old one
-    return NextResponse.json(
-      { error: "Invitation role updates are not currently supported" },
-      { status: 501 }
-    );
-
-  } catch (error) {
-    console.error("Failed to update invitation:", error);
     
     return NextResponse.json(
       { error: "An unexpected error occurred" },

@@ -9,7 +9,7 @@ import { validateDomainId, validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
 
 // Remove domain from team
-export async function DELETE(request: NextRequest, { params }: { params: { id: string; domainId: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; domainId: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -148,7 +148,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 }
 
 // Get domain details
-export async function GET(request: NextRequest, { params }: { params: { id: string; domainId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; domainId: string }> }) {
   try {
     const { user, organizations } = await getSession();
     

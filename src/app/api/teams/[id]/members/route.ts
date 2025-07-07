@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { z } from "zod";
 
+import { RoleResponse } from "@workos-inc/node";
+
 import { getSession } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -32,7 +34,7 @@ interface EnhancedMember {
   id: string;
   userId: string;
   organizationId: string;
-  role: any;
+  role: RoleResponse;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -47,10 +49,7 @@ interface EnhancedMember {
 }
 
 // Get team members (enhanced with user details)
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -211,10 +210,7 @@ export async function GET(
 }
 
 // Update member role
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -239,7 +235,8 @@ export async function PUT(
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error parsing JSON in request body:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -279,7 +276,7 @@ export async function PUT(
         userId: user.id,
         organizationId: teamId,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch team memberships:', error);
       return NextResponse.json(
         { error: "Failed to verify permissions" },
@@ -299,7 +296,7 @@ export async function PUT(
     let targetMembership;
     try {
       targetMembership = await workos.userManagement.getOrganizationMembership(membershipId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch target membership:', error);
       return NextResponse.json(
         { error: "Member not found" },
@@ -348,7 +345,7 @@ export async function PUT(
         membershipId,
         { roleSlug: role }
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to update member role:', error);
       
       // Handle specific WorkOS errors
@@ -390,10 +387,7 @@ export async function PUT(
 }
 
 // Bulk member operations
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user, organizations } = await getSession();
     
@@ -418,7 +412,8 @@ export async function POST(
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Error parsing JSON in request body:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
