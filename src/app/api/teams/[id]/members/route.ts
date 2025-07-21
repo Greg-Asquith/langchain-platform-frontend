@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { RoleResponse } from "@workos-inc/node";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -210,7 +211,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 // Update member role
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+  const { params } = args[0] as { params: Promise<{ id: string }> };
+
   try {
     const { user, organizations } = await getSession();
     
@@ -384,10 +387,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       { status: 500 }
     );
   }
-}
+});
 
 // Bulk member operations
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+  const { params } = args[0] as { params: Promise<{ id: string }> };
+
   try {
     const { user, organizations } = await getSession();
     
@@ -614,4 +619,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       { status: 500 }
     );
   }
-}
+});

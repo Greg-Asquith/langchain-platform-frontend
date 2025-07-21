@@ -12,7 +12,7 @@ export default async function PrivacyPolicy() {
 
   const content = (
     <>
-      <AppHeader breadcrumbs={breadcrumbs} />
+      <AppHeader breadcrumbs={breadcrumbs} useSidebar={user?.id ? true : false} />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           <div className="prose prose-lg max-w-none">
@@ -26,12 +26,10 @@ export default async function PrivacyPolicy() {
               <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
               <p className="mb-4">
                 Gregory Asquith Limited ("we", "us", or "our") operates the Praxis AI platform ("Service"). 
-                This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information 
-                when you use our Service.
+                This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information when you use our Service.
               </p>
               <p className="mb-4">
-                We are committed to protecting your privacy and complying with the UK General Data Protection 
-                Regulation (UK GDPR), the Data Protection Act 2018, and other applicable privacy laws.
+                We are committed to protecting your privacy and complying with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and other applicable privacy laws.
               </p>
             </section>
 
@@ -40,8 +38,8 @@ export default async function PrivacyPolicy() {
               <div className="bg-gray-100 p-4 rounded-lg mb-4">
                 <p><strong>Data Controller:</strong> Gregory Asquith Limited</p>
                 <p><strong>Registration:</strong> United Kingdom company</p>
-                <p><strong>Email:</strong> privacy@praxisai.com</p>
-                <p><strong>Address:</strong> [Your registered UK business address]</p>
+                <p><strong>Email:</strong> hello@gregasquith.com</p>
+                <p><strong>Registered Company Number:</strong> 12790388</p>
               </div>
             </section>
 
@@ -51,9 +49,8 @@ export default async function PrivacyPolicy() {
               <h3 className="text-xl font-semibold mb-3">3.1 Personal Information</h3>
               <p className="mb-4">We may collect the following types of personal information:</p>
               <ul className="list-disc pl-6 mb-4">
-                <li><strong>Account Information:</strong> Name, email address, password, company name</li>
-                <li><strong>Profile Information:</strong> Job title, phone number, profile picture</li>
-                <li><strong>Billing Information:</strong> Payment details, billing address, tax information</li>
+                <li><strong>Account Information:</strong> Name, email address, company name</li>
+                <li><strong>Profile Information:</strong> Profile picture</li>
                 <li><strong>Communication Data:</strong> Messages, support tickets, feedback</li>
                 <li><strong>Usage Data:</strong> How you interact with our Service</li>
               </ul>
@@ -96,7 +93,7 @@ export default async function PrivacyPolicy() {
 
               <h3 className="text-xl font-semibold mb-3">4.3 Improvement and Analytics</h3>
               <ul className="list-disc pl-6 mb-4">
-                <li>Analyzing usage patterns to improve our Service</li>
+                <li>Analysing usage patterns to improve our Service</li>
                 <li>Developing new features and capabilities</li>
                 <li>Conducting research and development</li>
                 <li>Monitoring performance and reliability</li>
@@ -140,15 +137,14 @@ export default async function PrivacyPolicy() {
 
               <h3 className="text-xl font-semibold mb-3">6.3 Business Transfers</h3>
               <p className="mb-4">
-                In the event of a merger, acquisition, or asset sale, your information may be transferred 
-                to the new entity, subject to the same privacy protections.
+                In the event of a merger, acquisition, or asset sale, your information may be transferred to the new entity, subject to the same privacy protections.
               </p>
             </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold mb-4">7. Data Security</h2>
               <p className="mb-4">
-                We implement appropriate technical and organizational measures to protect your personal information:
+                We implement appropriate technical and organisational measures to protect your personal information:
               </p>
               <ul className="list-disc pl-6 mb-4">
                 <li>Encryption of data in transit and at rest</li>
@@ -162,8 +158,7 @@ export default async function PrivacyPolicy() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold mb-4">8. Data Retention</h2>
               <p className="mb-4">
-                We retain your personal information only for as long as necessary for the purposes outlined 
-                in this Privacy Policy or as required by law:
+                We retain your personal information only for as long as necessary for the purposes outlined in this Privacy Policy or as required by law:
               </p>
               <ul className="list-disc pl-6 mb-4">
                 <li><strong>Account Data:</strong> Retained while your account is active</li>
@@ -197,8 +192,7 @@ export default async function PrivacyPolicy() {
               </ul>
 
               <p className="mb-4">
-                To exercise these rights, please contact us at privacy@praxisai.com. We will respond to your 
-                request within 30 days as required by UK GDPR.
+                To exercise these rights, please contact us at hello@gregasquith.com. We will respond to your request within 30 days as required by UK GDPR.
               </p>
             </section>
 
@@ -231,8 +225,7 @@ export default async function PrivacyPolicy() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold mb-4">11. International Data Transfers</h2>
               <p className="mb-4">
-                Your personal information may be transferred to and processed in countries outside the UK. 
-                We ensure appropriate safeguards are in place, including:
+                Your personal information may be transferred to and processed in countries outside the UK. We ensure appropriate safeguards are in place, including:
               </p>
               <ul className="list-disc pl-6 mb-4">
                 <li>Standard Contractual Clauses (SCCs) approved by the UK ICO</li>
@@ -245,18 +238,14 @@ export default async function PrivacyPolicy() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold mb-4">12. Children's Privacy</h2>
               <p className="mb-4">
-                Our Service is not intended for children under 16 years of age. We do not knowingly collect 
-                personal information from children under 16. If you believe we have collected information 
-                from a child under 16, please contact us immediately.
+                Our Service is not intended for children under 16 years of age. We do not knowingly collect personal information from children under 16. If you believe we have collected information from a child under 16, please contact us immediately.
               </p>
             </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold mb-4">13. Changes to This Privacy Policy</h2>
               <p className="mb-4">
-                We may update this Privacy Policy from time to time. We will notify you of any material 
-                changes by posting the new Privacy Policy on our website and updating the "Effective Date" 
-                above. We encourage you to review this Privacy Policy periodically.
+                We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new Privacy Policy on our website and updating the "Effective Date" above. We encourage you to review this Privacy Policy periodically.
               </p>
             </section>
 
@@ -268,8 +257,8 @@ export default async function PrivacyPolicy() {
               <div className="bg-gray-100 p-4 rounded-lg mb-4">
                 <p><strong>Data Protection Officer</strong></p>
                 <p>Gregory Asquith Limited</p>
-                <p>Email: privacy@praxisai.com</p>
-                <p>Address: [Your registered UK business address]</p>
+                <p>Email: hello@gregasquith.com</p>
+                <p>Registered Company Number: 12790388</p>
               </div>
               <p className="mb-4">
                 You also have the right to lodge a complaint with the Information Commissioner's Office (ICO) 

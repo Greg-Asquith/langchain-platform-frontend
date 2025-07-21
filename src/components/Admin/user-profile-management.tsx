@@ -14,6 +14,7 @@ import * as z from "zod";
 
 import { User as WorkOSUser } from "@workos-inc/node";
 import { useSession } from '@/lib/use-session';
+import { csrfPut } from '@/lib/csrf-fetch';
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -90,11 +91,7 @@ export function UserProfileManagement({ user: initialUser }: UserProfileManageme
     setIsUpdating(true);
     
     try {
-      const response = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const response = await csrfPut('/api/user/profile', data);
 
       const result = await response.json();
 
@@ -334,7 +331,7 @@ export function UserProfileManagement({ user: initialUser }: UserProfileManageme
                   <div>
                     <h4 className="font-medium">Account Created</h4>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(user.createdAt).toLocaleDateString('en-US', {
+                      {new Date(user.createdAt).toLocaleDateString('en-GB', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
@@ -350,7 +347,7 @@ export function UserProfileManagement({ user: initialUser }: UserProfileManageme
                   <div>
                     <h4 className="font-medium">Last Updated</h4>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(user.updatedAt).toLocaleDateString('en-US', {
+                      {new Date(user.updatedAt).toLocaleDateString('en-GB', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',

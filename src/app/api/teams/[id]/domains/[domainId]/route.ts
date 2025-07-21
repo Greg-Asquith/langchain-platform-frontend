@@ -4,12 +4,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { DomainData } from "@workos-inc/node";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession } from "@/lib/session";
 import { validateDomainId, validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
 
 // Remove domain from team
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; domainId: string }> }) {
+export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+  const { params } = args[0] as { params: Promise<{ id: string; domainId: string }> };
+
   try {
     const { user, organizations } = await getSession();
     
@@ -145,7 +148,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       { status: 500 }
     );
   }
-}
+});
 
 // Get domain details
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; domainId: string }> }) {

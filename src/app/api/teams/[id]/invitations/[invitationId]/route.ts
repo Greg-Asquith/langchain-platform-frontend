@@ -2,12 +2,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession } from "@/lib/session";
 import { validateTeamId, validateInvitationId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
 
 // Revoke invitation
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
+export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+  const { params } = args[0] as { params: Promise<{ id: string; invitationId: string }> };
+
   try {
     const { user, organizations } = await getSession();
     
@@ -140,7 +143,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       { status: 500 }
     );
   }
-}
+});
 
 // Get invitation details
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
@@ -224,7 +227,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 // Resend invitation
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
+export const POST = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+  const { params } = args[0] as { params: Promise<{ id: string; invitationId: string }> };
+
   try {
     const { user, organizations } = await getSession();
     
@@ -379,4 +384,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       { status: 500 }
     );
   }
-}
+});

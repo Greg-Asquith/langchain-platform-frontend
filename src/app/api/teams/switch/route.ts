@@ -2,13 +2,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-import { workos } from "@/lib/workos";
-
-
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession, switchOrganization } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
+import { workos } from "@/lib/workos";
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
     const { user, organizations } = await getSession();
     
@@ -81,4 +80,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+});

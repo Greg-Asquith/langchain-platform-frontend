@@ -16,6 +16,7 @@ import { Organization, Invitation, RoleResponse } from "@workos-inc/node";
 
 import { TEAM_COLORS } from "@/lib/teams";
 import { handleFetchResponse, handleClientError } from "@/lib/error-handler";
+import { csrfPut, csrfDelete } from "@/lib/csrf-fetch";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -189,11 +190,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
 
     setIsUpdating(true);
     try {
-      const response = await fetch(`/api/teams/${organization.id}`, {
-        method: 'PUT',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const response = await csrfPut(`/api/teams/${organization.id}`, data);
 
       // Use centralized response handling
       await handleFetchResponse(response);
@@ -263,9 +260,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
     }
 
     try {
-      const response = await fetch(`/api/teams/members/${membershipId}`, {
-        method: 'DELETE',
-      });
+      const response = await csrfDelete(`/api/teams/members/${membershipId}`);
 
       const result = await response.json();
 
@@ -355,9 +350,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
     }
     
     try {
-      const response = await fetch(`/api/teams/${organization.id}/domains/${domainId}`, {
-        method: "DELETE",
-      });
+      const response = await csrfDelete(`/api/teams/${organization.id}/domains/${domainId}`);
 
       const result = await response.json();
       
@@ -383,9 +376,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
     }
 
     try {
-      const response = await fetch(`/api/teams/${organization.id}/invitations/${invitationId}`, {
-        method: "DELETE",
-      });
+      const response = await csrfDelete(`/api/teams/${organization.id}/invitations/${invitationId}`);
 
       const result = await response.json();
 
@@ -436,9 +427,7 @@ export function TeamManagement({ organization, members, invitations, currentUser
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/teams/${organization.id}`, {
-        method: 'DELETE',
-      });
+      const response = await csrfDelete(`/api/teams/${organization.id}`);
 
       const result = await response.json();
 

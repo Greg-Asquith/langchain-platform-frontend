@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { z } from "zod";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession, refreshOrganizations } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -23,7 +24,9 @@ const updateTeamSchema = z.object({
 });
 
 // Update team settings
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+
+  const { params } = args[0] as { params: Promise<{ id: string }> };
 
   try {
     const { user, organizations } = await getSession();
@@ -192,10 +195,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       { status: 500 }
     );
   }
-}
+});
 
 // Delete team
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+
+  const { params } = args[0] as { params: Promise<{ id: string }> };
 
   try {
     const { user, organizations } = await getSession();
@@ -314,4 +319,4 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       { status: 500 }
     );
   }
-}
+});

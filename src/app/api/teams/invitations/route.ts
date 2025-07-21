@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { z } from "zod";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -20,7 +21,7 @@ const createInvitationSchema = z.object({
   }).default("member"),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRFProtection(async (request: NextRequest) => {
 
   try {
     const { user, organizations, currentOrganizationId } = await getSession();
@@ -260,7 +261,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 export async function GET(request: NextRequest) {
   try {

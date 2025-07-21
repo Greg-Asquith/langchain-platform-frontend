@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { z } from "zod";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession, updateSessionWithUserData } from "@/lib/session";
 import { workos } from "@/lib/workos";
 
@@ -67,7 +68,7 @@ export async function GET() {
 }
 
 // Update user profile
-export async function PUT(request: NextRequest) {
+export const PUT = withCSRFProtection(async (request: NextRequest) => {
   try {
     const { user } = await getSession();
     
@@ -162,4 +163,4 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

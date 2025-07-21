@@ -12,6 +12,7 @@ import { Organization } from "@workos-inc/node";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
+import { csrfPost } from "@/lib/csrf-fetch";
 
 interface TeamSwitcherProps {
   organizations: Organization[]
@@ -33,11 +34,7 @@ export function TeamSwitcher({ organizations, currentOrganizationId }: TeamSwitc
     }
 
     try {
-      const response = await fetch('/api/teams/switch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organizationId }),
-      })
+      const response = await csrfPost('/api/teams/switch', { organizationId })
 
       if (!response.ok) {
         throw new Error('Failed to switch team')

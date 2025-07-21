@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 
 import { TEAM_COLORS } from "@/lib/teams";
+import { csrfPost } from "@/lib/csrf-fetch";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -151,15 +152,11 @@ export function TeamCreationForm() {
     setIsSubmitting(true);  
     
     try {
-      const response = await fetch('/api/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name.trim(),
-          color: data.color,
-          domains: data.domains,
-          description: data.description,
-        }),
+      const response = await csrfPost('/api/teams', {
+        name: data.name.trim(),
+        color: data.color,
+        domains: data.domains,
+        description: data.description,
       });
 
       const result = await response.json();

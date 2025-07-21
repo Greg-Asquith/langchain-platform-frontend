@@ -2,11 +2,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { withCSRFProtection } from "@/lib/csrf";
 import { getSession } from "@/lib/session";
 import { validateMembershipId, validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ membershipId: string }> }) {
+export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: unknown[]) => {
+  const { params } = args[0] as { params: Promise<{ membershipId: string }> };
 
   try {
     const { user, currentOrganizationId } = await getSession();
@@ -163,7 +165,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       { status: 500 }
     );
   }
-}
+});
 
 // Get member details
 export async function GET(request: NextRequest, { params }: { params: Promise<{ membershipId: string }> }) {

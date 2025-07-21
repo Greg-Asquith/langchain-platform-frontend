@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Building, User, Users, Settings, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
+import { csrfPost } from "@/lib/csrf-fetch"
 
 import {
   Card,
@@ -33,11 +34,7 @@ export function TeamsList({ teams }: TeamsListProps) {
     setSwitchingTeam(teamId)
     
     try {
-      const response = await fetch('/api/teams/switch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organizationId: teamId }),
-      })
+      const response = await csrfPost('/api/teams/switch', { organizationId: teamId })
 
       if (!response.ok) {
         throw new Error('Failed to switch team')
