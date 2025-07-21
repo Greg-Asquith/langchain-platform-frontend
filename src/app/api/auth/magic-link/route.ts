@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { handleApiError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { workos } from "@/lib/workos";
 
 export async function POST(req: NextRequest) {
@@ -50,26 +52,11 @@ export async function POST(req: NextRequest) {
       authorizationUrl: verificationUrl,
     });
   } catch (error: unknown) {
-    console.error("Magic auth code sending failed:", error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStatus = error && typeof error === 'object' && 'status' in error ? error.status : undefined;
-    const errorCode = error && typeof error === 'object' && 'code' in error ? (error as unknown as { code: unknown }).code : undefined;
-    const errorData = error && typeof error === 'object' && 'data' in error ? (error as unknown as { data: unknown }).data : undefined;
-    
-    console.error("Error details:", {
-      message: errorMessage,
-      status: errorStatus,
-      code: errorCode,
-      data: errorData,
-    });
-
-    return NextResponse.json(
-      { 
-        error: "Failed to send verification code. Please try again.",
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
-      },
-      { status: 500 }
+    await logError(
+      'Magic auth code sending failed',
+      { component: 'POST /api/auth/magic-link' },
+      error as Error
     );
+    return handleApiError(error);
   }
 }

@@ -7,6 +7,8 @@ import { z } from "zod";
 import { DomainData } from "@workos-inc/node";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createAuthorizationError, createValidationError, createConflictError, createNotFoundError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -28,10 +30,7 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId } = await params;
@@ -41,26 +40,24 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     try {
       body = await request.json();
     } catch (error: unknown) {
-      console.error("Error parsing JSON in request body:", error);
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
+      await logError(
+        'Error parsing JSON in request body',
+        { component: 'POST /api/teams/[id]/domains' },
+        error as Error
       );
+      return handleApiError(createValidationError("Invalid JSON in request body"));
     }
 
     // Validate input data
     const validationResult = addDomainSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(
+        "Invalid input data",
+        { details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        })) }
+      ));
     }
 
     const { domain } = validationResult.data;
@@ -68,10 +65,7 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this organization" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this organization"));
     }
 
     // Get current organization to check if it's personal
@@ -79,19 +73,17 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     try {
       organization = await workos.organizations.getOrganization(teamId);
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch organization',
+        { component: 'POST /api/teams/[id]/domains' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Organization not found"));
     }
 
     // Check if this is a personal team
     if (organization.metadata?.personal === "true") {
-      return NextResponse.json(
-        { error: "Cannot add domains to personal teams" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Cannot add domains to personal teams"));
     }
 
     // Check if user is admin of the organization
@@ -102,37 +94,29 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
         organizationId: teamId,
       });
     } catch (error) {
-      console.error('Failed to fetch organization memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch organization memberships',
+        { component: 'POST /api/teams/[id]/domains' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const membership = memberships.data.find(m => m.organizationId === teamId);
     if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only organization admins can manage domains" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only organization admins can manage domains"));
     }
 
     // Check if domain already exists
     const existingDomain = organization.domains?.find(d => d.domain === domain);
     if (existingDomain) {
-      return NextResponse.json(
-        { error: "Domain already exists" },
-        { status: 409 }
-      );
+      return handleApiError(createConflictError("Domain already exists"));
     }
 
     // Check domain limits (max 10 domains per organization)
     const currentDomains = organization.domains || [];
     if (currentDomains.length >= 10) {
-      return NextResponse.json(
-        { error: "Maximum 10 domains allowed per organization" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Maximum 10 domains allowed per organization"));
     }
 
     // Check if domain is already in use by another organization
@@ -153,29 +137,24 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
         domainData: newDomainData as DomainData[],
       });
     } catch (error) {
-      console.error('Failed to add domain:', error);
+      await logError(
+        'Failed to add domain',
+        { component: 'POST /api/teams/[id]/domains' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error && error.message.includes('domain')) {
-        return NextResponse.json(
-          { error: "Domain is already in use by another organization" },
-          { status: 409 }
-        );
+        return handleApiError(createConflictError("Domain is already in use by another organization"));
       }
       
-      return NextResponse.json(
-        { error: "Failed to add domain" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to add domain", error as Error));
     }
 
     // Find the newly added domain
     const newDomain = updatedOrganization.domains?.find(d => d.domain === domain);
     if (!newDomain) {
-      return NextResponse.json(
-        { error: "Domain was not added successfully" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Domain was not added successfully"));
     }
 
     return NextResponse.json({
@@ -197,12 +176,13 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     });
 
   } catch (error: unknown) {
-    console.error("Failed to add domain:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to add domain',
+      { component: 'POST /api/teams/[id]/domains' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });
 
@@ -212,29 +192,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId } = await params;
 
     // Validate UUID format for team ID
     if (!validateTeamId(teamId)) {
-      return NextResponse.json(
-        { error: "Invalid team ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid team ID format"));
     }
 
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this organization" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this organization"));
     }
 
     // Get organization domains
@@ -242,11 +213,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     try {
       organization = await workos.organizations.getOrganization(teamId);
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch organization',
+        { component: 'GET /api/teams/[id]/domains' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Organization not found"));
     }
 
     return NextResponse.json({
@@ -261,11 +233,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
 
   } catch (error: unknown) {
-    console.error("Failed to get domains:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to get domains',
+      { component: 'GET /api/teams/[id]/domains' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 }

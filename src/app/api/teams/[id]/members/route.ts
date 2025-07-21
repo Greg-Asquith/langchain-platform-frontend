@@ -7,6 +7,8 @@ import { z } from "zod";
 import { RoleResponse } from "@workos-inc/node";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createAuthorizationError, createValidationError, createNotFoundError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -55,29 +57,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId } = await params;
 
     // Validate UUID format for team ID
     if (!validateTeamId(teamId)) {
-      return NextResponse.json(
-        { error: "Invalid team ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid team ID format"));
     }
 
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this team" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this team"));
     }
 
     // Get URL parameters for pagination and filtering
@@ -96,11 +89,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         ...(offset > 0 && { after: offset.toString() }),
       });
     } catch (error) {
-      console.error('Failed to fetch team members:', error);
-      return NextResponse.json(
-        { error: "Failed to fetch team members" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team members',
+        { component: 'GET /api/teams/[id]/members' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to fetch team members", error as Error));
     }
 
     // Filter members if role filter is applied
@@ -123,7 +117,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             profilePictureUrl: userData.profilePictureUrl || '',
           };
         } catch (error) {
-          console.error(`Failed to fetch user details for ${member.userId}:`, error);
+          await logError(
+            `Failed to fetch user details for ${member.userId}`,
+            { component: 'GET /api/teams/[id]/members' },
+            error as Error
+          );
           // Keep userDetails as null - we'll handle this in the UI
         }
 
@@ -169,7 +167,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         limit: 100,
       });
     } catch (error) {
-      console.error('Failed to fetch invitations:', error);
+      await logError(
+        'Failed to fetch invitations',
+        { component: 'GET /api/teams/[id]/members' },
+        error as Error
+      );
       invitations = { data: [] };
     }
 
@@ -201,12 +203,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
 
   } catch (error) {
-    console.error("Failed to get team members:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to get team members',
+      { component: 'GET /api/teams/[id]/members' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 }
 
@@ -218,20 +221,14 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId } = await params;
 
     // Validate UUID format for team ID
     if (!validateTeamId(teamId)) {
-      return NextResponse.json(
-        { error: "Invalid team ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid team ID format"));
     }
 
     // Parse and validate request body
@@ -239,26 +236,24 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     try {
       body = await request.json();
     } catch (error: unknown) {
-      console.error("Error parsing JSON in request body:", error);
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
+      await logError(
+        'Error parsing JSON in request body',
+        { component: 'PUT /api/teams/[id]/members' },
+        error as Error
       );
+      return handleApiError(createValidationError("Invalid JSON in request body"));
     }
 
     // Validate input data
     const validationResult = updateMemberRoleSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(
+        "Invalid input data",
+        { details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        })) }
+      ));
     }
 
     const { membershipId, role } = validationResult.data;
@@ -266,10 +261,7 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this organization" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this organization"));
     }
 
     // Check if user is admin of the organization
@@ -280,19 +272,17 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
         organizationId: teamId,
       });
     } catch (error: unknown) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team memberships',
+        { component: 'PUT /api/teams/[id]/members' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const membership = memberships.data.find(m => m.organizationId === teamId);
     if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only team admins can update member roles" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only team admins can update member roles"));
     }
 
     // Get the membership to be updated
@@ -300,44 +290,33 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     try {
       targetMembership = await workos.userManagement.getOrganizationMembership(membershipId);
     } catch (error: unknown) {
-      console.error('Failed to fetch target membership:', error);
-      return NextResponse.json(
-        { error: "Member not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch target membership',
+        { component: 'PUT /api/teams/[id]/members' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Member not found"));
     }
     
     if (targetMembership.organizationId !== teamId) {
-      return NextResponse.json(
-        { error: "Member not found in this organization" },
-        { status: 404 }
-      );
+      return handleApiError(createNotFoundError("Member not found in this organization"));
     }
 
     // Prevent changing own role
     if (targetMembership.userId === user.id) {
-      return NextResponse.json(
-        { error: "You cannot change your own role" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("You cannot change your own role"));
     }
 
     // Check if role change is necessary
     if (targetMembership.role?.slug === role) {
-      return NextResponse.json(
-        { error: "Member already has the specified role" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Member already has the specified role"));
     }
 
     // Prevent removing the last admin
     if (targetMembership.role?.slug === 'admin' && role === 'member') {
       const adminCount = memberships.data.filter(m => m.role?.slug === 'admin').length;
       if (adminCount <= 1) {
-        return NextResponse.json(
-          { error: "Cannot remove the last admin from the team" },
-          { status: 400 }
-        );
+        return handleApiError(createValidationError("Cannot remove the last admin from the team"));
       }
     }
 
@@ -349,20 +328,18 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
         { roleSlug: role }
       );
     } catch (error: unknown) {
-      console.error('Failed to update member role:', error);
+      await logError(
+        'Failed to update member role',
+        { component: 'PUT /api/teams/[id]/members' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error && error.message.includes('not found')) {
-        return NextResponse.json(
-          { error: "Member not found" },
-          { status: 404 }
-        );
+        return handleApiError(createNotFoundError("Member not found"));
       }
       
-      return NextResponse.json(
-        { error: "Failed to update member role" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to update member role", error as Error));
     }
 
     return NextResponse.json({
@@ -380,12 +357,13 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     });
 
   } catch (error) {
-    console.error("Failed to update member role:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to update member role',
+      { component: 'PUT /api/teams/[id]/members' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });
 
@@ -397,20 +375,14 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId } = await params;
 
     // Validate UUID format for team ID
     if (!validateTeamId(teamId)) {
-      return NextResponse.json(
-        { error: "Invalid team ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid team ID format"));
     }
 
     // Parse and validate request body
@@ -418,26 +390,24 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     try {
       body = await request.json();
     } catch (error: unknown) {
-      console.error("Error parsing JSON in request body:", error);
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
+      await logError(
+        'Error parsing JSON in request body',
+        { component: 'POST /api/teams/[id]/members' },
+        error as Error
       );
+      return handleApiError(createValidationError("Invalid JSON in request body"));
     }
 
     // Validate input data
     const validationResult = bulkMemberActionSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(
+        "Invalid input data",
+        { details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        })) }
+      ));
     }
 
     const { action, membershipIds, role } = validationResult.data;
@@ -459,19 +429,17 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
         organizationId: teamId,
       });
     } catch (error) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team memberships',
+        { component: 'POST /api/teams/[id]/members' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const membership = memberships.data.find(m => m.organizationId === teamId);
     if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only team admins can perform bulk operations" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only team admins can perform bulk operations"));
     }
 
     const results = [];
@@ -523,7 +491,11 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
             message: "Member removed successfully"
           });
         } catch (error) {
-          console.error(`Failed to remove member ${membershipId}:`, error);
+          await logError(
+            `Failed to remove member ${membershipId}`,
+            { component: 'POST /api/teams/[id]/members', metadata: { membershipId } },
+            error as Error
+          );
           results.push({ 
             membershipId, 
             error: "Failed to remove member",
@@ -534,10 +506,7 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     } else if (action === 'update_role') {
       // Update role for multiple members
       if (!role) {
-        return NextResponse.json(
-          { error: "Role is required for update_role action" },
-          { status: 400 }
-        );
+        return handleApiError(createValidationError("Role is required for update_role action"));
       }
 
       for (const membershipId of membershipIds) {
@@ -585,7 +554,11 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
             message: "Member role updated successfully"
           });
         } catch (error) {
-          console.error(`Failed to update member role ${membershipId}:`, error);
+          await logError(
+            `Failed to update member role ${membershipId}`,
+            { component: 'POST /api/teams/[id]/members', metadata: { membershipId } },
+            error as Error
+          );
           results.push({ 
             membershipId, 
             error: "Failed to update member role",
@@ -594,10 +567,7 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
         }
       }
     } else {
-      return NextResponse.json(
-        { error: "Unsupported bulk action" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Unsupported bulk action"));
     }
 
     return NextResponse.json({
@@ -612,11 +582,12 @@ export const POST = withCSRFProtection(async (request: NextRequest, ...args: unk
     });
 
   } catch (error) {
-    console.error("Failed to perform bulk operation:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to perform bulk operation',
+      { component: 'POST /api/teams/[id]/members' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });

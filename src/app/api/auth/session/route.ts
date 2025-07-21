@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { handleApiError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { createSession, getSession, getSessionInfo } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
@@ -42,12 +44,12 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error) {
-    console.error("Session creation error:", error);
-    
-    return NextResponse.json(
-      { error: "Failed to create session" },
-      { status: 500 }
+    await logError(
+      'Session creation error',
+      { component: 'POST /api/auth/session' },
+      error as Error
     );
+    return handleApiError(error);
   }
 }
 
@@ -70,11 +72,11 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error("Session retrieval error:", error);
-    
-    return NextResponse.json(
-      { error: "Failed to retrieve session" },
-      { status: 500 }
+    await logError(
+      'Session retrieval error',
+      { component: 'GET /api/auth/session' },
+      error as Error
     );
+    return handleApiError(error);
   }
 } 

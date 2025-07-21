@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { handleApiError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { workos, WORKOS_CLIENT_ID } from "@/lib/workos";
 
 export async function GET(request: NextRequest) {
@@ -35,11 +37,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(authorizationUrl);
 
   } catch (error) {
-    console.error("OAuth initiation error:", error);
-    
-    return NextResponse.json(
-      { error: "Failed to initiate OAuth flow" },
-      { status: 500 }
+    await logError(
+      'OAuth initiation error',
+      { component: 'GET /api/auth/oauth' },
+      error as Error
     );
+    return handleApiError(error);
   }
 } 

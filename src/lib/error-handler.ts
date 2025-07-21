@@ -2,6 +2,8 @@
 
 import { NextResponse } from 'next/server';
 
+import { logError } from '@/lib/logger';
+
 // Error types for better categorization
 export enum ErrorType {
   VALIDATION = 'validation',
@@ -75,7 +77,11 @@ export const createNetworkError = (message: string = 'Network error occurred') =
 
 // API Error Handler for consistent API responses
 export function handleApiError(error: unknown): NextResponse {
-  console.error('API Error:', error);
+  if (error instanceof Error) {
+    logError('API Error', { component: 'API route' }, error);
+  } else {
+    logError('API Error', { component: 'API route' }, new Error(String(error)));
+  }
 
   // If it's our custom AppError, use it directly
   if (error instanceof AppErrorClass) {
@@ -92,11 +98,7 @@ export function handleApiError(error: unknown): NextResponse {
   // Handle common JavaScript errors
   if (error instanceof Error) {
     // Log the full error for debugging
-    console.error('Unhandled Error:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    });
+    logError('Unhandled Error', { component: 'API route' }, error);
 
     // Check for specific error patterns
     if (error.message.includes('unauthorized') || error.message.includes('authentication')) {
@@ -179,7 +181,7 @@ export function handleClientError(
   }
 
   // Log the error
-  console.error('Client Error:', appError);
+  logError('Client Error', { component: 'client' }, appError as unknown as Error); 
 
   // Call custom error handler if provided
   if (onError) {
@@ -189,7 +191,7 @@ export function handleClientError(
   // Show toast notification (you can replace this with your toast library)
   if (showToast && typeof window !== 'undefined') {
     // Example: toast.error(appError.message);
-    console.error('Toast Error:', appError.message);
+    logError('Toast Error', { component: 'client' }, new Error(appError.message));
   }
 
   return appError;

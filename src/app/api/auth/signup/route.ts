@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { workos } from "@/lib/workos";
+import { logError } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,7 +39,11 @@ export async function POST(req: NextRequest) {
         );
       }
     } catch (error) {
-      console.error("Error checking existing user:", error);
+      await logError(
+        'Error checking existing user',
+        { component: 'POST /api/auth/signup' },
+        error as Error
+      );
       // Continue with user creation if check fails
     }
 
@@ -52,7 +57,11 @@ export async function POST(req: NextRequest) {
         emailVerified: false, // Will be verified when they complete magic auth
       });
     } catch (error: unknown) {
-      console.error("Error creating user:", error);
+      await logError(
+        'Error creating user',
+        { component: 'POST /api/auth/signup' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error && error.message?.includes("already exists")) {
@@ -90,13 +99,21 @@ export async function POST(req: NextRequest) {
       });
       
     } catch (error: unknown) {
-      console.error("Error sending verification code:", error);
+      await logError(
+        'Error sending verification code',
+        { component: 'POST /api/auth/signup' },
+        error as Error
+      );
       
       // If we created the user but failed to send verification, we should clean up by deleting the user
       try {
         await workos.userManagement.deleteUser(newUser.id);
       } catch (cleanupError) {
-        console.error("Failed to cleanup user after verification failure:", cleanupError);
+        await logError(
+          'Failed to cleanup user after verification failure',
+          { component: 'POST /api/auth/signup' },
+          cleanupError as Error
+        );
       }
       
       return NextResponse.json(
@@ -106,7 +123,11 @@ export async function POST(req: NextRequest) {
     }
     
   } catch (error: unknown) {
-    console.error("Signup failed:", error);
+    await logError(
+      'Signup failed',
+      { component: 'POST /api/auth/signup' },
+      error as Error
+    );
     
     return NextResponse.json(
       { 

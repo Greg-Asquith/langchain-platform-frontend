@@ -109,84 +109,6 @@ class Logger {
     return logEntry;
   }
 
-  private async sendToMonitoringService(logEntry: LogEntry): Promise<void> {
-    try {
-      // Only send ERROR and FATAL logs to monitoring service to avoid spam
-      if (logEntry.level !== LogLevel.ERROR && logEntry.level !== LogLevel.FATAL) {
-        return;
-      }
-
-      // Send to your monitoring service
-      // This is a placeholder - replace with your actual monitoring service
-      await this.sendToService(logEntry);
-    } catch (error) {
-      console.error('Failed to send log to monitoring service:', error);
-    }
-  }
-
-  private async sendToService(logEntry: LogEntry): Promise<void> {
-    // Example integrations (uncomment and configure as needed):
-    
-    // 1. Send to your API endpoint
-    if (typeof window !== 'undefined' && logEntry.level === LogLevel.ERROR) {
-      try {
-        await fetch('/api/errors', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: logEntry.message,
-            name: logEntry.error?.name || 'UnknownError',
-            stack: logEntry.error?.stack,
-            digest: logEntry.error?.digest,
-            url: logEntry.context.url || '',
-            userAgent: logEntry.context.userAgent || '',
-            timestamp: logEntry.timestamp,
-            context: logEntry.context,
-          }),
-        });
-      } catch (error) {
-        console.error('Failed to send error to API:', error);
-      }
-    }
-
-    // 2. Sentry integration
-    // if (typeof window !== 'undefined' && window.Sentry) {
-    //   window.Sentry.captureException(
-    //     new Error(logEntry.message),
-    //     {
-    //       level: logEntry.level === LogLevel.ERROR ? 'error' : 'warning',
-    //       tags: {
-    //         source: logEntry.source,
-    //         environment: logEntry.environment,
-    //         component: logEntry.context.component,
-    //       },
-    //       extra: {
-    //         context: logEntry.context,
-    //         timestamp: logEntry.timestamp,
-    //       },
-    //       user: {
-    //         id: logEntry.context.userId,
-    //         email: logEntry.context.userEmail,
-    //       },
-    //     }
-    //   );
-    // }
-
-    // 3. LogRocket integration
-    // if (typeof window !== 'undefined' && window.LogRocket) {
-    //   window.LogRocket.captureException(new Error(logEntry.message));
-    // }
-
-    // 4. DataDog integration
-    // if (process.env.DATADOG_API_KEY) {
-    //   await fetch('https://http-intake.logs.datadoghq.com/v1/input/' + process.env.DATADOG_API_KEY, {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(logEntry),
-    //   });
-    // }
-  }
-
   private logToConsole(logEntry: LogEntry): void {
     if (!this.enableConsoleLogging) return;
 
@@ -220,8 +142,6 @@ class Logger {
     // Log to console
     this.logToConsole(logEntry);
 
-    // Send to monitoring service
-    await this.sendToMonitoringService(logEntry);
   }
 
   public async debug(message: string, context?: LogContext): Promise<void> {

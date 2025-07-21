@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createAuthorizationError, createValidationError, createConflictError, createNotFoundError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession, refreshOrganizations } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -32,10 +34,7 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId } = await params;
@@ -45,26 +44,24 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     try {
       body = await request.json();
     } catch (error: unknown) {
-      console.error("Error parsing JSON in request body:", error);
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
+      await logError(
+        'Error parsing JSON in request body',
+        { component: 'PUT /api/teams/[id]' },
+        error as Error
       );
+      return handleApiError(createValidationError("Invalid JSON in request body"));
     }
 
     // Validate input data
     const validationResult = updateTeamSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(
+        "Invalid input data",
+        { details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        })) }
+      ));
     }
 
     const { name, description, color } = validationResult.data;
@@ -72,10 +69,7 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this team" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this team"));
     }
 
     // Check if user is admin of the organization
@@ -86,19 +80,17 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
         organizationId: teamId,
       });
     } catch (error) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team memberships',
+        { component: 'PUT /api/teams/[id]' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const membership = memberships.data.find(m => m.organizationId === teamId);
     if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only team admins can update team settings" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only team admins can update team settings"));
     }
 
     // Get current organization to preserve existing metadata
@@ -106,11 +98,12 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     try {
       currentOrg = await workos.organizations.getOrganization(teamId);
     } catch (error) {
-      console.error('Failed to fetch current organization:', error);
-      return NextResponse.json(
-        { error: "Team not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch current organization',
+        { component: 'PUT /api/teams/[id]' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Team not found"));
     }
 
     // Check if name is being changed and if it conflicts with existing orgs
@@ -122,10 +115,7 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
       );
       
       if (nameConflict) {
-        return NextResponse.json(
-          { error: "A team with this name already exists" },
-          { status: 409 }
-        );
+        return handleApiError(createConflictError("A team with this name already exists"));
       }
     }
 
@@ -144,35 +134,34 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
         },
       });
     } catch (error) {
-      console.error('Failed to update organization:', error);
+      await logError(
+        'Failed to update organization',
+        { component: 'PUT /api/teams/[id]' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error) {
         if (error.message.includes('name')) {
-          return NextResponse.json(
-            { error: "Team name is already taken" },
-            { status: 409 }
-          );
+          return handleApiError(createConflictError("Team name is already taken"));
         }
         if (error.message.includes('not found')) {
-          return NextResponse.json(
-            { error: "Team not found" },
-            { status: 404 }
-          );
+          return handleApiError(createNotFoundError("Team not found"));
         }
       }
       
-      return NextResponse.json(
-        { error: "Failed to update team settings" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to update team settings", error as Error));
     }
 
     // Refresh organizations in session to update sidebar
     try {
       await refreshOrganizations();
     } catch (error) {
-      console.error('Failed to refresh teams in session:', error);
+      await logError(
+        'Failed to refresh teams in session',
+        { component: 'PUT /api/teams/[id]' },
+        error as Error
+      );
       // Don't fail the request if session refresh fails
     }
 
@@ -187,13 +176,13 @@ export const PUT = withCSRFProtection(async (request: NextRequest, ...args: unkn
     });
 
   } catch (error) {
-    console.error("Failed to update team:", error);
-    
-    // Don't leak internal error details
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to update team',
+      { component: 'PUT /api/teams/[id]' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });
 
@@ -206,29 +195,20 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId } = await params;
 
     // Validate UUID format for team ID
     if (!validateTeamId(teamId)) {
-      return NextResponse.json(
-        { error: "Invalid team ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid team ID format"));
     }
 
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this team" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this team"));
     }
 
     // Check if user is admin of the organization
@@ -239,19 +219,17 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
         organizationId: teamId,
       });
     } catch (error) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team memberships',
+        { component: 'DELETE /api/teams/[id]' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const membership = memberships.data.find(m => m.organizationId === teamId);
     if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only team admins can delete teams" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only team admins can delete teams"));
     }
 
     // Get organization details for validation
@@ -259,19 +237,17 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     try {
       organization = await workos.organizations.getOrganization(teamId);
     } catch (error) {
-      console.error('Failed to fetch team:', error);
-      return NextResponse.json(
-        { error: "Team not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch team',
+        { component: 'DELETE /api/teams/[id]' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Team not found"));
     }
 
     // Prevent deletion of personal organizations
     if (organization.metadata?.personal === "true") {
-      return NextResponse.json(
-        { error: "Cannot delete personal teams" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Cannot delete personal teams"));
     }
 
     // Check if organization has multiple members (safety check)
@@ -281,28 +257,30 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     });
 
     if (allMemberships.data.length > 1) {
-      return NextResponse.json(
-        { error: "Cannot delete team with multiple members. Remove all members first." },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Cannot delete team with multiple members. Remove all members first."));
     }
 
     // Delete the organization
     try {
       await workos.organizations.deleteOrganization(teamId);
     } catch (error) {
-      console.error('Failed to delete team:', error);
-      return NextResponse.json(
-        { error: "Failed to delete team" },
-        { status: 500 }
+      await logError(
+        'Failed to delete team',
+        { component: 'DELETE /api/teams/[id]' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to delete team", error as Error));
     }
 
     // Refresh organizations in session
     try {
       await refreshOrganizations();
     } catch (error) {
-      console.error('Failed to refresh teams in session:', error);
+      await logError(
+        'Failed to refresh teams in session',
+        { component: 'DELETE /api/teams/[id]' },
+        error as Error
+      );
       // Don't fail the request if session refresh fails
     }
 
@@ -312,11 +290,12 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     });
 
   } catch (error) {
-    console.error("Failed to delete team:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to delete team',
+      { component: 'DELETE /api/teams/[id]' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });

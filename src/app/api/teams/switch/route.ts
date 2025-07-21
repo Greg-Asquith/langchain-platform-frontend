@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createAuthorizationError, createValidationError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession, switchOrganization } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -12,29 +14,20 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const body = await request.json();
     const { organizationId } = body;
 
     if (!validateTeamId(organizationId)) {
-      return NextResponse.json(
-        { error: "Organization ID is required" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Organization ID is required"));
     }
 
     // Verify user has access to this organization
     const hasAccess = organizations?.some(org => org.id === organizationId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this team" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this team"));
     }
 
     // Get user's role in the organization
@@ -50,7 +43,11 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         userRole = membership.role.slug;
       }
     } catch (error) {
-      console.error('Failed to fetch user role:', error);
+      await logError(
+        'Failed to fetch user role',
+        { component: 'POST /api/teams/switch' },
+        error as Error
+      );
       // Continue with default role
     }
 
@@ -58,10 +55,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const success = await switchOrganization(organizationId);
     
     if (!success) {
-      return NextResponse.json(
-        { error: "Failed to switch team" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to switch team"));
     }
 
     const currentOrg = organizations?.find(org => org.id === organizationId);
@@ -73,11 +67,12 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     });
 
   } catch (error) {
-    console.error("Failed to switch team:", error);
-    
-    return NextResponse.json(
-      { error: "Failed to switch team" },
-      { status: 500 }
+    await logError(
+      'Failed to switch team',
+      { component: 'POST /api/teams/switch' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });

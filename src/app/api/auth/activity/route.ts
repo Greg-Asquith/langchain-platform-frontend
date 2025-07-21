@@ -4,6 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { jwtVerify, SignJWT } from "jose";
 
+import { logError } from "@/lib/logger";
+import { handleApiError } from "@/lib/error-handler";
+
 const SECRET_KEY = new TextEncoder().encode(process.env.WORKOS_COOKIE_PASSWORD);
 
 export async function POST(request: NextRequest) {
@@ -50,11 +53,12 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error) {
-    console.error("Activity tracking error:", error);
-    
-    return NextResponse.json(
-      { error: "Failed to update session activity" },
-      { status: 500 }
+
+    await logError(
+      'Activity tracking error',
+      { component: 'POST /api/auth/activity' },
+      error as Error
     );
+    return handleApiError(error);
   }
 } 

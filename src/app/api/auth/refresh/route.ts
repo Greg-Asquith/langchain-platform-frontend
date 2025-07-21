@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { jwtVerify, SignJWT } from "jose";
+import { handleApiError, createAuthenticationError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 
 const SECRET_KEY = new TextEncoder().encode(process.env.WORKOS_COOKIE_PASSWORD);
 
@@ -22,7 +24,11 @@ export async function POST(request: NextRequest) {
           const { payload } = await jwtVerify(sessionCookie.value, SECRET_KEY);
           refreshToken = payload.refreshToken as string;
         } catch (error) {
-          console.error("Failed to parse session cookie:", error);
+          await logError(
+            'Failed to parse session cookie',
+            { component: 'POST /api/auth/refresh' },
+            error as Error
+          );  
         }
       }
     }
@@ -79,7 +85,11 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error: unknown) {
-    console.error("Session refresh error:", error);
+    await logError(
+      'Session refresh error',
+      { component: 'POST /api/auth/refresh' },
+      error as Error
+    );
     
     let errorMessage = "Failed to refresh session";
     
@@ -88,9 +98,6 @@ export async function POST(request: NextRequest) {
       errorMessage = "Session has expired. Please sign in again.";
     }
     
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 401 }
-    );
+    return handleApiError(createAuthenticationError(errorMessage));
   }
 } 

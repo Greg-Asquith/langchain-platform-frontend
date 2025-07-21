@@ -1,6 +1,9 @@
 // src/app/api/auth/csrf-token/route.ts
 
 import { NextResponse } from 'next/server';
+
+import { handleApiError } from '@/lib/error-handler';
+import { logError } from '@/lib/logger';
 import { generateCSRFToken, getSession } from '@/lib/session';
 
 export async function GET() {
@@ -21,11 +24,11 @@ export async function GET() {
       message: 'CSRF token generated successfully'
     });
   } catch (error) {
-    console.error('Failed to generate CSRF token:', error);
-    
-    return NextResponse.json(
-      { error: 'Failed to generate CSRF token' },
-      { status: 500 }
+    await logError(
+      'Failed to generate CSRF token',
+      { component: 'GET /api/auth/csrf-token' },
+      error as Error
     );
+    return handleApiError(error);
   }
 } 

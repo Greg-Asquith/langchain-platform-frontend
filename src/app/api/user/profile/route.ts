@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createValidationError, createNotFoundError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession, updateSessionWithUserData } from "@/lib/session";
 import { workos } from "@/lib/workos";
 
@@ -26,10 +28,7 @@ export async function GET() {
     const { user } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     // Get fresh user data from WorkOS
@@ -37,11 +36,12 @@ export async function GET() {
     try {
       freshUserData = await workos.userManagement.getUser(user.id);
     } catch (error: unknown) {
-      console.error('Failed to fetch user data:', error);
-      return NextResponse.json(
-        { error: "Failed to fetch user data" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch user data',
+        { component: 'GET /api/user/profile' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to fetch user data", error as Error));
     }
 
     return NextResponse.json({
@@ -58,12 +58,13 @@ export async function GET() {
     });
 
   } catch (error: unknown) {
-    console.error("Failed to get user profile:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to get user profile',
+      { component: 'GET /api/user/profile' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 }
 
@@ -73,10 +74,7 @@ export const PUT = withCSRFProtection(async (request: NextRequest) => {
     const { user } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     // Parse and validate request body
@@ -84,26 +82,24 @@ export const PUT = withCSRFProtection(async (request: NextRequest) => {
     try {
       body = await request.json();
     } catch (error: unknown) {
-      console.error("Error parsing JSON in request body:", error);
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
+      await logError(
+        'Error parsing JSON in request body',
+        { component: 'PUT /api/user/profile' },
+        error as Error
       );
+      return handleApiError(createValidationError("Invalid JSON in request body"));
     }
 
     // Validate input data
     const validationResult = updateProfileSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(
+        "Invalid input data",
+        { details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        })) }
+      ));
     }
 
     const { firstName, lastName } = validationResult.data;
@@ -117,28 +113,27 @@ export const PUT = withCSRFProtection(async (request: NextRequest) => {
         lastName: lastName.trim(),
       });
     } catch (error: unknown) {
-      console.error('Failed to update user profile:', error);
+      await logError(
+        'Failed to update user profile',
+        { component: 'PUT /api/user/profile' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error && error.message.includes('not found')) {
-        if (error.message.includes('not found')) {
-          return NextResponse.json(
-            { error: "User not found" },
-            { status: 404 }
-          );
-        }
+        return handleApiError(createNotFoundError("User not found"));
       }
       
-      return NextResponse.json(
-        { error: "Failed to update profile" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to update profile", error as Error));
     }
 
     // Update the session with the new user data
     const sessionUpdated = await updateSessionWithUserData(updatedUser);
     if (!sessionUpdated) {
-      console.warn('Failed to update session with new user data');
+      await logError(
+        'Failed to update session with new user data',
+        { component: 'PUT /api/user/profile' }
+      );
       // Don't fail the request, just log the warning
     }
 
@@ -156,11 +151,12 @@ export const PUT = withCSRFProtection(async (request: NextRequest) => {
     });
 
   } catch (error: unknown) {
-    console.error("Failed to update user profile:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to update user profile',
+      { component: 'PUT /api/user/profile' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });

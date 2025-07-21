@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createAuthorizationError, createValidationError, createNotFoundError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession } from "@/lib/session";
 import { validateMembershipId, validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -14,27 +16,18 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     const { user, currentOrganizationId } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     if (!validateTeamId(currentOrganizationId)) {
-      return NextResponse.json(
-        { error: "No current team selected" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("No current team selected"));
     }
 
     const { membershipId } = await params;
 
     // Validate UUID format for membership ID
     if (!validateMembershipId(membershipId)) {
-      return NextResponse.json(
-        { error: "Invalid membership ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid membership ID format"));
     }
 
     // Get the membership to be removed to verify it belongs to the current organization
@@ -42,18 +35,16 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     try {
       membershipToRemove = await workos.userManagement.getOrganizationMembership(membershipId);
     } catch (error) {
-      console.error('Failed to fetch membership to remove:', error);
-      return NextResponse.json(
-        { error: "Member not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch membership to remove',
+        { component: 'DELETE /api/teams/members/[membershipId]' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Member not found"));
     }
     
     if (membershipToRemove.organizationId !== currentOrganizationId) {
-      return NextResponse.json(
-        { error: "Member not found in current team" },
-        { status: 404 }
-      );
+      return handleApiError(createNotFoundError("Member not found in current team"));
     }
 
     // Get organization details to check if it's personal
@@ -61,11 +52,12 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     try {
       organization = await workos.organizations.getOrganization(currentOrganizationId);
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch organization',
+        { component: 'DELETE /api/teams/members/[membershipId]' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Organization not found"));
     }
 
     // Check if this is a personal team
@@ -74,10 +66,7 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     if (isPersonalTeam) {
       // For personal teams, only allow the owner to remove themselves (which would be leaving)
       // But we probably don't want to allow that either since it would orphan the personal team
-      return NextResponse.json(
-        { error: "Cannot remove members from personal teams" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Cannot remove members from personal teams"));
     }
 
     // Check if current user is admin of the organization
@@ -88,27 +77,22 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
         organizationId: currentOrganizationId,
       });
     } catch (error) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team memberships',
+        { component: 'DELETE /api/teams/members/[membershipId]' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const currentUserMembership = memberships.data.find(m => m.organizationId === currentOrganizationId);
     if (!currentUserMembership || currentUserMembership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only team admins can remove members" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only team admins can remove members"));
     }
 
     // Prevent removing self
     if (membershipToRemove.userId === user.id) {
-      return NextResponse.json(
-        { error: "You cannot remove yourself from the team" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("You cannot remove yourself from the team"));
     }
 
     // Prevent removing the last admin
@@ -120,10 +104,7 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
       
       const adminCount = allOrgMemberships.data.filter(m => m.role?.slug === 'admin').length;
       if (adminCount <= 1) {
-        return NextResponse.json(
-          { error: "Cannot remove the last admin from the team" },
-          { status: 400 }
-        );
+        return handleApiError(createValidationError("Cannot remove the last admin from the team"));
       }
     }
 
@@ -131,20 +112,18 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     try {
       await workos.userManagement.deleteOrganizationMembership(membershipId);
     } catch (error) {
-      console.error('Failed to delete membership:', error);
+      await logError(
+        'Failed to delete membership',
+        { component: 'DELETE /api/teams/members/[membershipId]' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error && error.message.includes('not found')) {
-        return NextResponse.json(
-          { error: "Member not found" },
-          { status: 404 }
-        );
+        return handleApiError(createNotFoundError("Member not found"));
       }
       
-      return NextResponse.json(
-        { error: "Failed to remove member" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to remove member", error as Error));
     }
 
     return NextResponse.json({
@@ -158,12 +137,13 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     });
 
   } catch (error) {
-    console.error("Failed to remove member:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to remove member',
+      { component: 'DELETE /api/teams/members/[membershipId]' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });
 
@@ -173,27 +153,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { user, currentOrganizationId } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     if (!validateTeamId(currentOrganizationId)) {
-      return NextResponse.json(
-        { error: "No current team selected" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("No current team selected"));
     }
 
     const { membershipId } = await params;
 
     // Validate UUID format for membership ID
     if (!validateMembershipId(membershipId)) {
-      return NextResponse.json(
-        { error: "Invalid membership ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid membership ID format"));
     }
 
     // Check if user has access to the organization
@@ -204,19 +175,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         organizationId: currentOrganizationId,
       });
     } catch (error) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team memberships',
+        { component: 'GET /api/teams/members/[membershipId]' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const hasAccess = memberships.data.some(m => m.organizationId === currentOrganizationId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this team" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this team"));
     }
 
     // Get the membership details
@@ -224,18 +193,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     try {
       membership = await workos.userManagement.getOrganizationMembership(membershipId);
     } catch (error) {
-      console.error('Failed to fetch membership:', error);
-      return NextResponse.json(
-        { error: "Member not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch membership',
+        { component: 'GET /api/teams/members/[membershipId]' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Member not found"));
     }
     
     if (membership.organizationId !== currentOrganizationId) {
-      return NextResponse.json(
-        { error: "Member not found in current team" },
-        { status: 404 }
-      );
+      return handleApiError(createNotFoundError("Member not found in current team"));
     }
 
     // Get organization details to include team type info
@@ -243,7 +210,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     try {
       organization = await workos.organizations.getOrganization(currentOrganizationId);
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
+      await logError(
+        'Failed to fetch organization',
+        { component: 'GET /api/teams/members/[membershipId]' },
+        error as Error
+      );
       // Don't fail the request if we can't get org details
     }
 
@@ -262,11 +233,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
 
   } catch (error) {
-    console.error("Failed to get member details:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to get member details',
+      { component: 'GET /api/teams/members/[membershipId]' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 }

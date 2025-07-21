@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createAuthorizationError, createValidationError, createConflictError, createNotFoundError, createInternalError, createRateLimitError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession } from "@/lib/session";
 import { validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -27,17 +29,11 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const { user, organizations, currentOrganizationId } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     if (!validateTeamId(currentOrganizationId)) {
-      return NextResponse.json(
-        { error: "No current team selected" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("No current team selected"));
     }
 
     // Parse and validate request body
@@ -45,26 +41,24 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     try {
       body = await request.json();
     } catch (error: unknown) {
-      console.error("Error parsing JSON in request body:", error);
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
+      await logError(
+        'Error parsing JSON in request body',
+        { component: 'POST /api/teams/invitations' },
+        error as Error
       );
+      return handleApiError(createValidationError("Invalid JSON in request body"));
     }
 
     // Validate input data
     const validationResult = createInvitationSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(
+        "Invalid input data",
+        { details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        })) }
+      ));
     }
 
     const { email, role } = validationResult.data;
@@ -72,10 +66,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     // Verify user has access to current organization and is admin
     const currentOrg = organizations?.find(org => org.id === currentOrganizationId);
     if (!currentOrg) {
-      return NextResponse.json(
-        { error: "Current team not found" },
-        { status: 404 }
-      );
+      return handleApiError(createNotFoundError("Current team not found"));
     }
 
     // Get full organization details to check if it's personal
@@ -83,19 +74,17 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     try {
       organization = await workos.organizations.getOrganization(currentOrg.id);
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch organization',
+        { component: 'POST /api/teams/invitations' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Organization not found"));
     }
 
     // Check if this is a personal team
     if (organization.metadata?.personal === "true") {
-      return NextResponse.json(
-        { error: "Cannot invite members to personal teams" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Cannot invite members to personal teams"));
     }
 
     // Check if user is admin of the organization
@@ -106,27 +95,22 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         organizationId: currentOrganizationId,
       });
     } catch (error) {
-      console.error('Failed to fetch team memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch team memberships',
+        { component: 'POST /api/teams/invitations' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const membership = memberships.data.find(m => m.organizationId === currentOrganizationId);
     if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only team admins can send invitations" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only team admins can send invitations"));
     }
 
     // Check if user is trying to invite themselves
     if (email === user.email) {
-      return NextResponse.json(
-        { error: "You cannot invite yourself" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("You cannot invite yourself"));
     }
 
     // Check if user is already a member of the organization
@@ -146,16 +130,16 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         const existingMembership = existingMemberships.data.find(m => m.userId === existingUser.id);
         
         if (existingMembership) {
-          return NextResponse.json(
-            { error: "User is already a member of this team" },
-            { status: 409 }
-          );
+          return handleApiError(createConflictError("User is already a member of this team"));
         }
       }
     } catch (error: unknown) {
-      console.error("Error checking if user exists:", error);
+      await logError(
+        'Error checking if user exists',
+        { component: 'POST /api/teams/invitations' },
+        error as Error
+      );
       // User doesn't exist yet, which is fine for invitations
-      console.log('User not found, proceeding with invitation');
     }
 
     // Check for existing pending invitations
@@ -169,10 +153,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     );
 
     if (pendingInvitation) {
-      return NextResponse.json(
-        { error: "A pending invitation already exists for this email address" },
-        { status: 409 }
-      );
+      return handleApiError(createConflictError("A pending invitation already exists for this email address"));
     }
 
     // Check organization limits (if any)
@@ -180,10 +161,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const maxMembers = 50; // Adjust based on your business logic
     
     if (totalMembers >= maxMembers) {
-      return NextResponse.json(
-        { error: `Team has reached the maximum limit of ${maxMembers} members` },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(`Team has reached the maximum limit of ${maxMembers} members`));
     }
 
     // Rate limiting check - prevent spam invitations
@@ -194,10 +172,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     });
 
     if (recentInvitations.length >= 10) {
-      return NextResponse.json(
-        { error: "Too many invitations sent recently. Please wait before sending more." },
-        { status: 429 }
-      );
+      return handleApiError(createRateLimitError("Too many invitations sent recently. Please wait before sending more."));
     }
 
     // Create invitation
@@ -209,34 +184,26 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         roleSlug: role,
       });
     } catch (error) {
-      console.error('Failed to create invitation:', error);
+      await logError(
+        'Failed to create invitation',
+        { component: 'POST /api/teams/invitations' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error) {
         if (error.message.includes('already exists')) {
-          return NextResponse.json(
-            { error: "An invitation for this email already exists" },
-            { status: 409 }
-          );
+          return handleApiError(createConflictError("An invitation for this email already exists"));
         }
         if (error.message.includes('invalid email')) {
-          return NextResponse.json(
-            { error: "Invalid email address" },
-            { status: 400 }
-          );
+          return handleApiError(createValidationError("Invalid email address"));
         }
         if (error.message.includes('organization not found')) {
-          return NextResponse.json(
-            { error: "Team not found" },
-            { status: 404 }
-          );
+          return handleApiError(createNotFoundError("Team not found"));
         }
       }
       
-      return NextResponse.json(
-        { error: "Failed to create invitation" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to create invitation", error as Error));
     }
 
     return NextResponse.json({
@@ -254,12 +221,13 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     });
 
   } catch (error: unknown) {
-    console.error("Failed to create invitation:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to create invitation',
+      { component: 'POST /api/teams/invitations' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });
 
@@ -268,17 +236,11 @@ export async function GET(request: NextRequest) {
     const { user, currentOrganizationId } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     if (!validateTeamId(currentOrganizationId)) {
-      return NextResponse.json(
-        { error: "No current team selected" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("No current team selected"));
     }
 
     // Get URL parameters for pagination and filtering
@@ -297,11 +259,12 @@ export async function GET(request: NextRequest) {
         ...(email && { email }),
       });
     } catch (error) {
-      console.error('Failed to fetch invitations:', error);
-      return NextResponse.json(
-        { error: "Failed to get invitations" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch invitations',
+        { component: 'GET /api/teams/invitations' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to get invitations", error as Error));
     }
 
     // Check if user is admin to determine what data to return
@@ -320,7 +283,11 @@ export async function GET(request: NextRequest) {
       const organization = await workos.organizations.getOrganization(currentOrganizationId || '');
       isPersonalTeam = organization.metadata?.personal === "true";
     } catch (error: unknown) {
-      console.error('Failed to check admin status:', error);
+      await logError(
+        'Failed to check admin status',
+        { component: 'GET /api/teams/invitations' },
+        error as Error
+      );
     }
 
     // Filter invitation data based on user permissions
@@ -351,11 +318,12 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error("Failed to get invitations:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to get invitations',
+      { component: 'GET /api/teams/invitations' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 }

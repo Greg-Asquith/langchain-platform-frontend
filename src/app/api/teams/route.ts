@@ -7,6 +7,8 @@ import { z } from "zod";
 import { DomainData } from "@workos-inc/node";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createValidationError, createConflictError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession, refreshOrganizations } from "@/lib/session";
 import { workos } from "@/lib/workos";
 
@@ -33,10 +35,7 @@ export async function GET() {
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     return NextResponse.json({
@@ -44,12 +43,13 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error("Failed to get organizations:", error);
-    
-    return NextResponse.json(
-      { error: "Failed to get organizations" },
-      { status: 500 }
+    await logError(
+      'Failed to get organizations', 
+      { component: 'GET /api/teams' }, 
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 }
 
@@ -58,10 +58,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     const { user } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     // Parse and validate request body
@@ -69,26 +66,24 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     try {
       body = await request.json();
     } catch (error: unknown) {
-      console.error("Error parsing JSON in request body:", error);
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
+      await logError(
+        'Error parsing JSON in request body',
+        { component: 'POST /api/teams' },
+        error as Error
       );
+      return handleApiError(createValidationError("Invalid JSON in request body"));
     }
 
     // Validate input data
     const validationResult = createTeamSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: "Invalid input data",
-          details: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError(
+        "Invalid input data",
+        { details: validationResult.error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        })) }
+      ));
     }
 
     const { name, description, color, domains } = validationResult.data;
@@ -96,10 +91,7 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     // Check for duplicate domains
     const uniqueDomains = [...new Set(domains)];
     if (uniqueDomains.length !== domains.length) {
-      return NextResponse.json(
-        { error: "Duplicate domains are not allowed" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Duplicate domains are not allowed"));
     }
 
     // Prepare domain data for WorkOS
@@ -116,29 +108,24 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         domainData: domainData as unknown as DomainData[],
       });
     } catch (error: unknown) {
-      console.error('Failed to create team:', error);
+      await logError(
+        'Failed to create team',
+        { component: 'POST /api/teams' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error && error.message.includes('domain')) {
         if (error.message.includes('domain')) {
-          return NextResponse.json(
-            { error: "One or more domains are already in use by another team" },
-            { status: 409 }
-          );
+          return handleApiError(createConflictError("One or more domains are already in use by another team"));
         }
         
         if (error instanceof Error && error.message.includes('name')) {
-          return NextResponse.json(
-            { error: "Team name is already taken" },
-            { status: 409 }
-          );
+          return handleApiError(createConflictError("Team name is already taken"));
         }
       }
       
-      return NextResponse.json(
-        { error: "Failed to create team" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to create team", error as Error));
     }
 
     // Update organization metadata with color and other settings
@@ -156,19 +143,24 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         },
       });
     } catch (error: unknown) {
-      console.error('Failed to update team metadata:', error);
+      await logError(
+        'Failed to update team metadata',
+        { component: 'POST /api/teams' },
+        error as Error
+      );
       
       // Try to clean up the created organization
       try {
         await workos.organizations.deleteOrganization(organization.id);
       } catch (cleanupError: unknown) {
-        console.error('Failed to cleanup team after metadata update failure:', cleanupError);
+        await logError(
+          'Failed to cleanup team after metadata update failure',
+          { component: 'POST /api/teams' },
+          cleanupError as Error
+        );
       }
       
-      return NextResponse.json(
-        { error: "Failed to configure team" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to configure team", error as Error));
     }
 
     // Add the user as an admin of the new organization
@@ -179,26 +171,35 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
         roleSlug: 'admin',
       });
     } catch (error: unknown) {
-      console.error('Failed to add user as admin:', error);
+      await logError(
+        'Failed to add user as admin',
+        { component: 'POST /api/teams' },
+        error as Error
+      );
       
       // Try to clean up the created organization
       try {
         await workos.organizations.deleteOrganization(organization.id);
       } catch (cleanupError: unknown) {
-        console.error('Failed to cleanup team after membership creation failure:', cleanupError);
+        await logError(
+          'Failed to cleanup team after membership creation failure',
+          { component: 'POST /api/teams' },
+          cleanupError as Error
+        );
       }
       
-      return NextResponse.json(
-        { error: "Failed to add user as team admin" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to add user as team admin", error as Error));
     }
 
     // Refresh organizations in session to update sidebar
     try {
       await refreshOrganizations();
     } catch (error: unknown) {
-      console.error('Failed to refresh teams in session:', error);
+      await logError(
+        'Failed to refresh teams in session',
+        { component: 'POST /api/teams' },
+        error as Error
+      );
       // Don't fail the request if session refresh fails
     }
 
@@ -218,11 +219,12 @@ export const POST = withCSRFProtection(async (request: NextRequest) => {
     });
 
   } catch (error: unknown) {
-    console.error("Failed to create team:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to create team',
+      { component: 'POST /api/teams' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });

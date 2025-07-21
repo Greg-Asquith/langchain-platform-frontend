@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 
 import { Geist, Geist_Mono } from "next/font/google";
-import ErrorBoundary from "@/components/ErrorHandling/ErrorBoundary";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 import "./globals.css";
 

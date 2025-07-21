@@ -2,8 +2,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticationError, handleApiError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { createSession } from "@/lib/session";
 import { WORKOS_CLIENT_ID, workos } from "@/lib/workos";
+
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +15,10 @@ export async function POST(request: NextRequest) {
     const { email, code } = body;
 
     if (!email || !code) {
-      console.error("Missing email or code");
+      await logError(
+        'Missing email or code',
+        { component: 'POST /api/auth/callback' }
+      );
       return NextResponse.json(
         { error: "Email and verification code are required" },
         { status: 400 }
@@ -46,7 +53,11 @@ export async function POST(request: NextRequest) {
     try {
       completeUser = await workos.userManagement.getUser(authResult.user.id);
     } catch (error) {
-      console.error("Failed to fetch complete user data:", error);
+      await logError(
+        'Failed to fetch complete user data',
+        { component: 'POST /api/auth/callback' },
+        error as Error
+      );
       // Continue with the original user object if we can't fetch the complete data
     }
 
@@ -63,7 +74,11 @@ export async function POST(request: NextRequest) {
         completeUser.emailVerified = true;
       }
     } catch (updateError) {
-      console.error("Failed to update user email verification status:", updateError);
+      await logError(
+        'Failed to update user email verification status',
+        { component: 'POST /api/auth/callback' },
+        updateError as Error
+      );
       // Don't fail the authentication if we can't update verification status
     }
 
@@ -98,7 +113,11 @@ export async function POST(request: NextRequest) {
 
     return jsonResponse;
   } catch (error: unknown) {
-    console.error("Magic auth verification failed:", error);
+    await logError(
+      'Magic auth verification failed',
+      { component: 'POST /api/auth/callback' },
+      error as Error
+    );
 
     // Provide more specific error messages
     let errorMessage = "Invalid verification code. Please try again.";
@@ -113,12 +132,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { 
-        error: errorMessage,
-        details: process.env.NODE_ENV === "development" ? (error as Error).message : undefined
-      },
-      { status: 401 }
-    );
+    return handleApiError(createAuthenticationError(errorMessage));
   }
 }

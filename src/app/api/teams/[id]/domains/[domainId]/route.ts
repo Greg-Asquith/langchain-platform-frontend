@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { DomainData } from "@workos-inc/node";
 
 import { withCSRFProtection } from "@/lib/csrf";
+import { handleApiError, createAuthenticationError, createAuthorizationError, createValidationError, createNotFoundError, createInternalError } from "@/lib/error-handler";
+import { logError } from "@/lib/logger";
 import { getSession } from "@/lib/session";
 import { validateDomainId, validateTeamId } from "@/lib/teams";
 import { workos } from "@/lib/workos";
@@ -17,10 +19,7 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId, domainId } = await params;
@@ -28,10 +27,7 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this organization" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this organization"));
     }
 
     // Get current organization
@@ -39,19 +35,17 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     try {
       organization = await workos.organizations.getOrganization(teamId);
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch organization',
+        { component: 'DELETE /api/teams/[id]/domains/[domainId]' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Organization not found"));
     }
 
     // Check if this is a personal team
     if (organization.metadata?.personal === "true") {
-      return NextResponse.json(
-        { error: "Cannot manage domains on personal teams" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Cannot manage domains on personal teams"));
     }
 
     // Check if user is admin of the organization
@@ -62,28 +56,23 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
         organizationId: teamId,
       });
     } catch (error) {
-      console.error('Failed to fetch organization memberships:', error);
-      return NextResponse.json(
-        { error: "Failed to verify permissions" },
-        { status: 500 }
+      await logError(
+        'Failed to fetch organization memberships',
+        { component: 'DELETE /api/teams/[id]/domains/[domainId]' },
+        error as Error
       );
+      return handleApiError(createInternalError("Failed to verify permissions", error as Error));
     }
 
     const membership = memberships.data.find(m => m.organizationId === teamId);
     if (!membership || membership.role?.slug !== 'admin') {
-      return NextResponse.json(
-        { error: "Only organization admins can manage domains" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Only organization admins can manage domains"));
     }
     
     // Find the domain to remove
     const domainToRemove = organization.domains?.find(d => d.id === domainId);
     if (!domainToRemove) {
-      return NextResponse.json(
-        { error: "Domain not found" },
-        { status: 404 }
-      );
+      return handleApiError(createNotFoundError("Domain not found"));
     }
 
     // Prevent removal of the last domain if it's actively used
@@ -105,20 +94,18 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
         domainData: updatedDomainData as unknown as DomainData[],
       });
     } catch (error) {
-      console.error('Failed to remove domain:', error);
+      await logError(
+        'Failed to remove domain',
+        { component: 'DELETE /api/teams/[id]/domains/[domainId]' },
+        error as Error
+      );
       
       // Handle specific WorkOS errors
       if (error instanceof Error && error.message.includes('not found')) {
-        return NextResponse.json(
-          { error: "Domain or organization not found" },
-          { status: 404 }
-        );
+        return handleApiError(createNotFoundError("Domain or organization not found"));
       }
       
-      return NextResponse.json(
-        { error: "Failed to remove domain" },
-        { status: 500 }
-      );
+      return handleApiError(createInternalError("Failed to remove domain", error as Error));
     }
 
     return NextResponse.json({
@@ -141,12 +128,13 @@ export const DELETE = withCSRFProtection(async (request: NextRequest, ...args: u
     });
 
   } catch (error) {
-    console.error("Failed to remove domain:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to remove domain',
+      { component: 'DELETE /api/teams/[id]/domains/[domainId]' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 });
 
@@ -156,37 +144,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { user, organizations } = await getSession();
     
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return handleApiError(createAuthenticationError());
     }
 
     const { id: teamId, domainId } = await params;
 
     // Validate UUID format for team ID
     if (!validateTeamId(teamId)) {
-      return NextResponse.json(
-        { error: "Invalid team ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid team ID format"));
     }
 
     // Validate UUID format for domain ID
     if (!validateDomainId(domainId)) {
-      return NextResponse.json(
-        { error: "Invalid domain ID format" },
-        { status: 400 }
-      );
+      return handleApiError(createValidationError("Invalid domain ID format"));
     }
 
     // Check if user has access to this organization
     const hasAccess = organizations?.some(org => org.id === teamId);
     if (!hasAccess) {
-      return NextResponse.json(
-        { error: "Access denied to this organization" },
-        { status: 403 }
-      );
+      return handleApiError(createAuthorizationError("Access denied to this organization"));
     }
 
     // Get organization and find the domain
@@ -194,20 +170,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     try {
       organization = await workos.organizations.getOrganization(teamId);
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
+      await logError(
+        'Failed to fetch organization',
+        { component: 'GET /api/teams/[id]/domains/[domainId]' },
+        error as Error
       );
+      return handleApiError(createNotFoundError("Organization not found"));
     }
     
     // Find the specific domain
     const domain = organization.domains?.find(d => d.id === domainId);
     if (!domain) {
-      return NextResponse.json(
-        { error: "Domain not found" },
-        { status: 404 }
-      );
+      return handleApiError(createNotFoundError("Domain not found"));
     }
 
     return NextResponse.json({
@@ -221,11 +195,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
 
   } catch (error) {
-    console.error("Failed to get domain details:", error);
-    
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+    await logError(
+      'Failed to get domain details',
+      { component: 'GET /api/teams/[id]/domains/[domainId]' },
+      error as Error
     );
+    
+    return handleApiError(error);
   }
 }
